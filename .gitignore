@@ -1,0 +1,7 @@
+# 运行产物与本地缓存
+node_modules/
+tests/artifacts/
+dist/
+*.log
+.DS_Store
+Thumbs.db

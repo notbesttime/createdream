@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#edf6f7">
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+  <title>叠叠狐狸 · 湖南理工大学南湖创梦空间地图编辑器</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand-block">
+        <button class="logo-slot" id="logoSlot" title="上传学校标识" aria-label="上传学校标识">
+          <span class="logo-placeholder"><b>标识</b><small>上传图片</small></span>
+        </button>
+        <input id="logoInput" type="file" accept="image/*" hidden>
+        <div class="brand-copy">
+          <div class="eyebrow">湖南理工大学 · 南湖创梦空间</div>
+          <div class="brand-title-row">
+            <h1>校园地图编辑器</h1>
+            <a class="author-link" href="https://nobesttime.pages.dev/" target="_blank" rel="noopener noreferrer" title="关于作者 · nobesttime.pages.dev">关于作者</a>
+          </div>
+        </div>
+      </div>
+      <div class="toolbar" role="toolbar" aria-label="地图工具">
+        <button class="tool-btn" id="orientationBtn" title="切换画布方向"><span class="tool-icon">▯</span><span>横屏画布</span></button>
+        <button class="tool-btn toggle-btn is-active" id="snapBtn" aria-pressed="true" title="吸附到网格"><span class="tool-icon">⌗</span><span>网格吸附</span></button>
+        <span class="toolbar-divider"></span>
+        <button class="icon-btn" id="undoBtn" title="撤销 Ctrl+Z" aria-label="撤销">↶</button>
+        <button class="icon-btn" id="redoBtn" title="重做 Ctrl+Shift+Z" aria-label="重做">↷</button>
+        <button class="tool-btn" id="fitBtn" title="适应画布"><span class="tool-icon">⤢</span><span>适应</span></button>
+        <span class="toolbar-divider"></span>
+        <button class="tool-btn" id="saveBtn"><span class="tool-icon">▣</span><span>保存</span></button>
+        <button class="tool-btn" id="exportJsonBtn"><span class="tool-icon">⇩</span><span>布局文件</span></button>
+        <button class="tool-btn" id="importJsonBtn"><span class="tool-icon">⇧</span><span>导入</span></button>
+        <button class="tool-btn primary-btn" id="exportPngBtn"><span class="tool-icon">▧</span><span>导出图片</span></button>
+        <button class="icon-btn clear-btn" id="clearBtn" title="清空画布" aria-label="清空画布">⌫</button>
+        <input id="jsonInput" type="file" accept=".json,application/json" hidden>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <aside class="palette" id="palette">
+        <div class="palette-head">
+          <div class="palette-title"><span class="title-mark"></span><h2>素材库</h2></div>
+          <button id="paletteToggle" class="collapse-btn" title="收起素材栏" aria-label="收起素材栏">‹</button>
+        </div>
+        <div class="palette-body">
+          <div id="paletteGroups"></div>
+        </div>
+        <button id="paletteExpand" class="expand-tab" title="展开素材栏" aria-label="展开素材栏">›</button>
+      </aside>
+
+      <section class="stage-wrap" id="stageWrap" aria-label="校园地图画布">
+        <div class="stage-topline">
+          <div class="canvas-caption"><span class="live-dot"></span><span>布局画布</span><span class="caption-sep">/</span><span id="orientationLabel">竖版 · 2:3</span></div>
+          <div class="zoom-controls">
+            <button id="zoomOutBtn" class="zoom-btn" title="缩小">−</button>
+            <span id="zoomReadout">100%</span>
+            <button id="zoomInBtn" class="zoom-btn" title="放大">+</button>
+          </div>
+        </div>
+        <div id="stageContainer"></div>
+        <div id="labelsOverlay" class="labels-overlay"></div>
+        <div class="draw-banner" id="drawBanner" hidden><span class="draw-live-dot"></span><span id="drawPrompt"></span><button id="drawCancelBtn" type="button">取消绘制</button></div>
+        <div class="compass" aria-label="上方为南的指南针">
+          <svg viewBox="0 0 82 82" role="img" aria-hidden="true">
+            <circle cx="41" cy="41" r="37" fill="#fffdf8" stroke="#d8d0bb" stroke-width="1.5"/>
+            <circle cx="41" cy="41" r="29" fill="none" stroke="#ebe4d3" stroke-width="1"/>
+            <path d="M41 10 L48 41 L41 35 L34 41 Z" fill="#cf6952" stroke="#9e4d3d" stroke-width="1"/>
+            <path d="M41 72 L34 41 L41 47 L48 41 Z" fill="#e7e0cf" stroke="#9c927a" stroke-width="1"/>
+            <circle cx="41" cy="41" r="3.2" fill="#5f5b4d"/>
+            <text x="41" y="8" text-anchor="middle" class="compass-s">南</text>
+            <text x="41" y="80" text-anchor="middle" class="compass-n">北</text>
+            <text x="6" y="44" text-anchor="middle" class="compass-e">东</text>
+            <text x="76" y="44" text-anchor="middle" class="compass-w">西</text>
+          </svg>
+          <span>上方为南</span>
+        </div>
+        <div class="canvas-status"><span id="itemCount">0 个物件</span><span class="status-sep">·</span><span id="saveState">已自动保存</span></div>
+      </section>
+
+      <aside class="inspector" id="inspector" hidden>
+        <div class="inspector-head">
+          <div><span class="inspector-kicker">当前物件</span><h2 id="inspectorType">建筑</h2></div>
+          <button id="inspectorClose" class="close-btn" title="取消选择" aria-label="取消选择">×</button>
+        </div>
+        <label class="field-label" for="nameInput">地图名称</label>
+        <input id="nameInput" class="text-input" type="text" maxlength="24" placeholder="留空则不显示名称">
+        <label class="check-row"><input id="showNameInput" type="checkbox"><span class="checkmark"></span><span>显示浮动名称</span></label>
+        <div class="field-divider"></div>
+        <label class="field-label" for="typeInput">替换素材</label>
+        <select id="typeInput" class="select-input"></select>
+        <button id="replaceImageBtn" class="action-btn image-replace-btn" type="button">上传图片替换</button>
+        <input id="replaceImageInput" type="file" accept="image/*" hidden>
+        <label class="field-label tint-field" id="tintField" for="tintInput" hidden>区域颜色<input id="tintInput" type="color" value="#a9b88a"></label>
+        <div class="field-divider"></div>
+        <div class="field-grid">
+          <label class="field-label">宽度 <span>px</span><input id="widthInput" type="number" min="24" max="4000" step="10"></label>
+          <label class="field-label">高度 <span>px</span><input id="heightInput" type="number" min="24" max="4000" step="10"></label>
+          <label class="field-label rotation-field">旋转 <span>°</span><input id="rotationInput" type="number" min="-360" max="360" step="5"></label>
+        </div>
+        <div class="field-divider"></div>
+        <div class="inspector-actions">
+          <button id="duplicateBtn" class="action-btn"><span>▣</span>复制</button>
+          <button id="frontBtn" class="action-btn"><span>↑</span>上移</button>
+          <button id="backBtn" class="action-btn"><span>↓</span>下移</button>
+          <button id="deleteBtn" class="action-btn danger-action"><span>×</span>删除</button>
+        </div>
+      </aside>
+      <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    </main>
+  </div>
+  <script src="js/vendor/konva.min.js"></script>
+  <script src="js/assets.js"></script>
+  <script src="js/draw.js"></script>
+  <script src="js/paths.js"></script>
+  <script src="js/water.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
