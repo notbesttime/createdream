@@ -35,6 +35,18 @@
 
 将本目录完整发布到任意静态托管服务即可。入口为 `index.html`，无需构建步骤。
 
+线上地址：<https://createdream.pages.dev>（Cloudflare Pages 项目 `createdream`）
+
+### 自动部署（GitHub Actions）
+
+推送到 `main` 会自动构建并发布：`.github/workflows/deploy-pages.yml` 会把运行时文件（`index.html`、`styles.css`、`_headers`、`js/`、`assets/`、`docs/`）复制到 `dist/`，再用 `wrangler pages deploy` 上传。
+
+首次使用需要在仓库 **Settings → Secrets and variables → Actions** 里加一个 secret：
+
+- `CLOUDFLARE_API_TOKEN`：Cloudflare → My Profile → API Tokens → Create Token → Custom token，权限 **Account · Cloudflare Pages · Edit**（Account ID 已内置，不需要单独配置）
+
+加完在 Actions 里手动跑一次，或直接 push 触发。
+
 ## 开发验证
 
 运行时仍为纯静态网页；下列离屏回归测试仅在开发时使用 Node.js 与可选的 `canvas` 模块：

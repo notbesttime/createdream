@@ -1,0 +1,41 @@
+name: Deploy to Cloudflare Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: pages-deploy
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  deployments: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Assemble static bundle
+        run: |
+          set -eu
+          rm -rf dist && mkdir -p dist
+          cp -R index.html styles.css _headers js assets docs README.md dist/
+          echo "files in bundle: $(find dist -type f | wc -l)"
+
+      - name: Missing token notice
+        if: ${{ secrets.CLOUDFLARE_API_TOKEN == '' }}
+        run: |
+          echo "::warning::未配置 CLOUDFLARE_API_TOKEN，本次跳过部署。请在 Settings → Secrets and variables → Actions 添加后重新运行。"
+
+      - name: Publish to Cloudflare Pages
+        if: ${{ secrets.CLOUDFLARE_API_TOKEN != '' }}
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || '50f84b6494830b21bb71946ecc906309' }}
+          command: pages deploy dist --project-name=createdream --branch=main
