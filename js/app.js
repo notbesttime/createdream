@@ -6,6 +6,7 @@
   const SIZE = { portrait: { w: 1000, h: 1500 }, landscape: { w: 1500, h: 1000 } };
   const FONT = "Microsoft YaHei, PingFang SC, sans-serif";
   const GRASS_SRC = "assets/grass.webp";
+  const DEFAULT_LOGO = "assets/school-logo.png";
   const $ = function (id) { return document.getElementById(id); };
   const stageWrap = $("stageWrap");
   const stageContainer = $("stageContainer");
@@ -16,7 +17,7 @@
   let orientation = "portrait";
   let board = SIZE[orientation];
   let snapEnabled = true;
-  let logoData = "";
+  let logoData = DEFAULT_LOGO;
   let selectedId = null;
   let nextId = 1;
   let items = [];
@@ -496,7 +497,7 @@
     orientation = data.orientation === "landscape" ? "landscape" : "portrait";
     board = SIZE[orientation];
     snapEnabled = data.snapEnabled !== false;
-    logoData = typeof data.logoData === "string" ? data.logoData : "";
+    logoData = typeof data.logoData === "string" && data.logoData ? data.logoData : DEFAULT_LOGO;
     items = Array.isArray(data.items) ? data.items.map(function (x) {
       const def = ART.definitions.find(function (d) { return d.type === x.type; });
       if (!def) return null;
@@ -756,6 +757,7 @@
   window.addEventListener("resize",resizeStage);
 
   buildPalette();
+  renderLogo();
   window.MapAssets.loadAll(ART.definitions.map(function (d) { return d.src; }).concat([GRASS_SRC])).then(function () { setBoardTexture(); objectsLayer.batchDraw(); });
   const stored=localStorage.getItem(STORE_KEY);
   if(stored){try{restoreData(JSON.parse(stored));history=[copyData()];}catch(e){seedDemo();setBoardTexture();requestAnimationFrame(fitView);history=[copyData()];}}
