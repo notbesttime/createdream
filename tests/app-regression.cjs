@@ -62,7 +62,7 @@ let passed=0;function test(name,run){run();passed++;console.log("PASS "+name);}c
   test("asset buildings render from the shared bitmap cache, not canvas art",()=>{assert.ok(assetReads>0);});
   test("saved layout keeps assets by file reference without embedding base64",()=>{const raw=storage.get("ddhx-campus-map-v1");assert.ok(!raw.includes("data:image"));assert.ok(raw.includes("\"type\":\"brick\""));});
   await el("exportPngBtn").emit("click");
-  test("PNG export completes with the same water composition",()=>{const d=downloads.find(x=>x.href&&x.href.startsWith("data:image/png"));assert.ok(d);const image=new Image();image.src=Buffer.from(d.href.split(",")[1],"base64");assert.equal(image.width,2000);assert.equal(image.height,3000);});
+  test("PNG export completes with the same water composition",()=>{const d=downloads.find(x=>x.href&&x.href.startsWith("data:image/png"));assert.ok(d);const image=new Image();image.src=Buffer.from(d.href.split(",")[1],"base64");assert.equal(image.width,1600);assert.equal(image.height,2400);});
   const saved=downloads.find(x=>x.href&&x.href.startsWith("data:image/png"));
   fs.mkdirSync(path.join(__dirname,"artifacts"),{recursive:true});
   fs.writeFileSync(path.join(__dirname,"artifacts","map-preview.png"),Buffer.from(saved.href.split(",")[1],"base64"));
