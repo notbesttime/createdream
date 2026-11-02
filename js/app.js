@@ -145,7 +145,7 @@
   }
   function copyData() {
     return JSON.stringify({ orientation: orientation, snapEnabled: snapEnabled, logoData: logoData, items: items.map(function (item) {
-      return { id: item.id, type: item.type, x: item.x, y: item.y, w: item.w, h: item.h, rotation: item.rotation, name: item.name, showName: item.showName, pathPoints: item.pathPoints || null, pathBaseW: item.pathBaseW || null, pathBaseH: item.pathBaseH || null, pathThickness: item.pathThickness || null, tint: item.tint || null, imageData: item.imageData || "" };
+      return { id: item.id, type: item.type, x: item.x, y: item.y, w: item.w, h: item.h, rotation: item.rotation, name: item.name, showName: item.showName, pathPoints: item.pathPoints || null, pathBaseW: item.pathBaseW || null, pathBaseH: item.pathBaseH || null, pathThickness: item.pathThickness || null, tint: item.tint || null, noHit: !!item.noHit, imageData: item.imageData || "" };
     }) });
   }
   function persist() {
@@ -229,7 +229,7 @@
     const shape = new Konva.Shape({
       x: item.x, y: item.y, width: item.w, height: item.h,
       offsetX: item.w / 2, offsetY: item.h / 2,
-      rotation: item.rotation || 0, draggable: true,
+      rotation: item.rotation || 0, draggable: !item.noHit, listening: !item.noHit,
       sceneFunc: function (ctx, node) {
         const raw = ctx._context || ctx;
         raw.save();
@@ -252,7 +252,8 @@
           });
           raw.lineCap = "round"; raw.lineJoin = "round";
           raw.lineWidth = Math.max(10, (item.pathThickness || 48) * node.width() / baseW);
-          raw.strokeStyle = "#000"; raw.stroke();
+          raw.strokeStyle = node.colorKey || "#000";
+          raw.stroke();
         } else { ctx.beginPath(); ctx.rect(0, 0, node.width(), node.height()); ctx.closePath(); }
         ctx.fillStrokeShape(node);
       }
@@ -342,6 +343,8 @@
       $("tintField").hidden = item.type !== "garden" && item.type !== "sketch";
       $("nameInput").value = item.name || "";
       $("showNameInput").checked = item.showName !== false;
+      $("noHitRow").hidden = !isSharedPath(item);
+      $("noHitInput").checked = !!item.noHit;
       $("widthInput").value = Math.round(item.w);
       $("heightInput").value = Math.round(item.h);
       $("rotationInput").value = Math.round(item.node.rotation());
@@ -515,7 +518,7 @@
       if (!def) return null;
       const pathPoints = Array.isArray(x.pathPoints) ? x.pathPoints.filter(function (p) { return p && Number.isFinite(Number(p.x)) && Number.isFinite(Number(p.y)); }).map(function (p) { return { x: Number(p.x), y: Number(p.y) }; }) : null;
       const imageData = typeof x.imageData === "string" && /^data:image\/(png|jpeg|webp|gif);base64,/i.test(x.imageData) ? x.imageData : "";
-      return { id: x.id || id(), type: x.type, x: Number(x.x)||0, y: Number(x.y)||0, w: Math.max(24, Number(x.w)||def.w), h: Math.max(24, Number(x.h)||def.h), rotation: Number(x.rotation)||0, name: String(x.name||""), showName: x.showName !== false, pathPoints: pathPoints, pathBaseW: Math.max(1, Number(x.pathBaseW)||Number(x.w)||def.w), pathBaseH: Math.max(1, Number(x.pathBaseH)||Number(x.h)||def.h), pathThickness: Math.max(0, Number(x.pathThickness)||0), tint: /^#[0-9a-f]{6}$/i.test(x.tint||"") ? x.tint : "", imageData: imageData, imageElement: null };
+      return { id: x.id || id(), type: x.type, x: Number(x.x)||0, y: Number(x.y)||0, w: Math.max(24, Number(x.w)||def.w), h: Math.max(24, Number(x.h)||def.h), rotation: Number(x.rotation)||0, name: String(x.name||""), showName: x.showName !== false, pathPoints: pathPoints, pathBaseW: Math.max(1, Number(x.pathBaseW)||Number(x.w)||def.w), pathBaseH: Math.max(1, Number(x.pathBaseH)||Number(x.h)||def.h), pathThickness: Math.max(0, Number(x.pathThickness)||0), tint: /^#[0-9a-f]{6}$/i.test(x.tint||"") ? x.tint : "", noHit: x.noHit === true, imageData: imageData, imageElement: null };
     }).filter(Boolean) : [];
     selectedId = null;
     orientationTransform = null;
@@ -540,15 +543,22 @@
   }
   function buildPalette() {
     const root = $("paletteGroups");
-    ART.definitions.forEach(function (def) { const option = document.createElement("option"); option.value = def.type; option.textContent = def.label; $("typeInput").appendChild(option); });
+    ART.definitions.filter(function (def) { return !def.upload; }).forEach(function (def) { const option = document.createElement("option"); option.value = def.type; option.textContent = def.label; $("typeInput").appendChild(option); });
     const groups = Array.from(new Set(ART.definitions.map(function (d) { return d.group; })));
     groups.forEach(function (group) {
       const title = document.createElement("div"); title.className = "group-title"; title.textContent = group; root.appendChild(title);
       const grid = document.createElement("div"); grid.className = "asset-grid";
       ART.definitions.filter(function (d) { return d.group === group; }).forEach(function (def) {
         const button = document.createElement("button"); button.className = "asset-card"; button.type = "button"; button.draggable = !def.drawMode; button.title = def.drawMode ? "选择后按住拖动绘制：" + def.label : "点击添加或拖到地图上：" + def.label; button.dataset.type = def.type;
-        const image = document.createElement("img"); image.className = "asset-preview"; image.alt = ""; image.src = def.src || ART.thumbnail(def.type); image.loading = "lazy"; image.decoding = "async";
         const name = document.createElement("span"); name.className = "asset-name"; name.textContent = def.label;
+        if (def.upload) {
+          const plus = document.createElement("span"); plus.className = "asset-plus"; plus.textContent = "+";
+          button.appendChild(plus); button.appendChild(name);
+          button.title = "导入一张 PNG 图片，作为贴图放到地图上";
+          button.addEventListener("click", function () { $("customPngInput").click(); });
+          grid.appendChild(button); return;
+        }
+        const image = document.createElement("img"); image.className = "asset-preview"; image.alt = ""; image.src = def.src || ART.thumbnail(def.type); image.loading = "lazy"; image.decoding = "async";
         button.appendChild(image); button.appendChild(name);
         button.addEventListener("click", function () { if (def.drawMode) enterDrawMode(def.type); else { cancelDrawMode(); addItem(def.type); } });
         if (!def.drawMode) button.addEventListener("dragstart", function (evt) { evt.dataTransfer.setData("application/x-ddhx-item", def.type); evt.dataTransfer.effectAllowed = "copy"; });
@@ -715,6 +725,18 @@
   $("inspectorClose").addEventListener("click",function(){selectItem(null);});
   $("nameInput").addEventListener("input",function(){const item=items.find(function(x){return x.id===selectedId;});if(!item)return;item.name=this.value;updateLabels();});
   $("nameInput").addEventListener("change",function(){const item=items.find(function(x){return x.id===selectedId;});if(item){item.name=this.value;record();}});
+  $("noHitInput").addEventListener("change",function(){
+    const item=items.find(function(x){return x.id===selectedId;});if(!item)return;
+    item.noHit=this.checked;
+    if(item.node){item.node.listening(!item.noHit);item.node.draggable(!item.noHit);}
+    if(item.noHit){transformer.nodes([]);}
+    record();
+    showToast(item.noHit?"该物件已点击穿透：暂时无法被选中":"已恢复该物件的点击");
+  });
+  $("unlockBtn").addEventListener("click",function(){
+    let n=0;items.forEach(function(it){if(it.noHit){it.noHit=false;if(it.node){it.node.listening(true);it.node.draggable(true);}n++;}});
+    if(n){record();showToast("已解除 "+n+" 个物件的点击锁定");}else{showToast("没有需要解除的锁定");}
+  });
   $("showNameInput").addEventListener("change",function(){const item=items.find(function(x){return x.id===selectedId;});if(!item)return;item.showName=this.checked;updateLabels();record();});
   $("typeInput").addEventListener("change",function(){
     const item=items.find(function(x){return x.id===selectedId;});if(!item)return;
@@ -738,6 +760,30 @@
       URL.revokeObjectURL(url);
     };
     image.onerror=function(){URL.revokeObjectURL(url);showToast("图片读取失败");};image.src=url;evt.target.value="";
+  });
+  $("customPngInput").addEventListener("change", function (evt) {
+    const file = evt.target.files && evt.target.files[0];
+    evt.target.value = "";
+    if (!file) return;
+    if (file.type !== "image/png") { showToast("只支持 PNG 图片（透明底效果最好）"); return; }
+    const url = URL.createObjectURL(file), img = new Image();
+    img.onload = function () {
+      const maxSide = 600;
+      const k = Math.min(1, maxSide / Math.max(img.width, img.height));
+      const cv = document.createElement("canvas");
+      cv.width = Math.max(1, Math.round(img.width * k));
+      cv.height = Math.max(1, Math.round(img.height * k));
+      cv.getContext("2d").drawImage(img, 0, 0, cv.width, cv.height);
+      const rect = stageContainer.getBoundingClientRect();
+      const p = worldPoint(rect.left + stage.width() / 2, rect.top + stage.height() / 2);
+      const w = Math.min(260, cv.width), h = w * cv.height / cv.width;
+      const item = { id: id(), type: "custompng", x: p.x, y: p.y, w: w, h: h, rotation: 0, name: "", showName: true, imageData: cv.toDataURL("image/png"), imageElement: cv };
+      items.push(item); renderShape(item); makeLabel(item); syncZOrder(); selectItem(item.id); record();
+      showToast("已添加自定义 PNG 贴图");
+      URL.revokeObjectURL(url);
+    };
+    img.onerror = function () { URL.revokeObjectURL(url); showToast("图片读取失败"); };
+    img.src = url;
   });
   $("widthInput").addEventListener("input",function(){const item=items.find(function(x){return x.id===selectedId;});if(item)setNodeSize(item,this.value,item.h);});
   $("heightInput").addEventListener("input",function(){const item=items.find(function(x){return x.id===selectedId;});if(item)setNodeSize(item,item.w,this.value);});
@@ -769,7 +815,13 @@
   renderLogo();
   window.MapAssets.loadAll(ART.definitions.map(function (d) { return d.src; }).concat([GRASS_SRC, CLOUD_SEA_SRC])).then(function () { setBoardTexture(); objectsLayer.batchDraw(); });
   const stored=localStorage.getItem(STORE_KEY);
-  if(stored){try{restoreData(JSON.parse(stored));history=[copyData()];}catch(e){seedDemo();setBoardTexture();requestAnimationFrame(fitView);history=[copyData()];}}
-  else {seedDemo();setBoardTexture();requestAnimationFrame(fitView);history=[copyData()];}
+  if(stored){
+    try{restoreData(JSON.parse(stored));history=[copyData()];}
+    catch(e){seedDemo();setBoardTexture();requestAnimationFrame(fitView);history=[copyData()];}
+  } else if(window.DEFAULT_LAYOUT){
+    // 首次打开且本地没有存档时，用打包进站点的基准布局
+    try{restoreData(window.DEFAULT_LAYOUT);history=[copyData()];}
+    catch(e){seedDemo();setBoardTexture();requestAnimationFrame(fitView);history=[copyData()];}
+  } else {seedDemo();setBoardTexture();requestAnimationFrame(fitView);history=[copyData()];}
   updateHistoryButtons();
 })();

@@ -12,7 +12,8 @@
     { group: "道路与桥梁", type: "bridge", label: "木桥", w: 250, h: 62, color: "#a88d69", drawMode: true },
     { group: "绿化", type: "tree", label: "树木", w: 78, h: 90, color: "#778e68", src: "assets/tree.webp" },
     { group: "绿化", type: "garden", label: "绿地", w: 205, h: 145, color: "#a3b47f" },
-    { group: "自绘", type: "sketch", label: "自绘区域", w: 210, h: 150, color: "#a8b889", drawMode: true }
+    { group: "自绘", type: "sketch", label: "自绘区域", w: 210, h: 150, color: "#a8b889", drawMode: true },
+    { group: "自绘", type: "custompng", label: "自定义png贴图", w: 200, h: 160, color: "#c9bcd8", upload: true }
   ];
 
   function roundRect(ctx, x, y, w, h, r) {

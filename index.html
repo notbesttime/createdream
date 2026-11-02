@@ -37,7 +37,9 @@
         <button class="tool-btn" id="importJsonBtn"><span class="tool-icon">⇧</span><span>导入</span></button>
         <button class="tool-btn primary-btn" id="exportPngBtn"><span class="tool-icon">▧</span><span>导出图片</span></button>
         <button class="icon-btn clear-btn" id="clearBtn" title="清空画布" aria-label="清空画布">⌫</button>
+        <button class="icon-btn" id="unlockBtn" title="解除所有「点击穿透」锁定" aria-label="解除点击锁定">🔓</button>
         <input id="jsonInput" type="file" accept=".json,application/json" hidden>
+        <input id="customPngInput" type="file" accept="image/png,image/x-png" hidden>
       </div>
     </header>
 
@@ -90,6 +92,7 @@
         <label class="field-label" for="nameInput">地图名称</label>
         <input id="nameInput" class="text-input" type="text" maxlength="24" placeholder="留空则不显示名称">
         <label class="check-row"><input id="showNameInput" type="checkbox"><span class="checkmark"></span><span>显示浮动名称</span></label>
+        <label class="check-row" id="noHitRow" hidden><input id="noHitInput" type="checkbox"><span class="checkmark"></span><span>点击穿透（暂不可选中）</span></label>
         <div class="field-divider"></div>
         <label class="field-label" for="typeInput">替换素材</label>
         <select id="typeInput" class="select-input"></select>

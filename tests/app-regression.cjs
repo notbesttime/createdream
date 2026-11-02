@@ -43,6 +43,20 @@ let passed=0;function test(name,run){run();passed++;console.log("PASS "+name);}c
     for(let i=0;i<3;i++) assert.ok(Math.abs(centre[i]-ref[i])<=14,"channel "+i+" "+centre[i]+" vs "+ref[i]);
     assert.equal(board.width,1000);assert.equal(board.height,1500);
   });
+  let data0=await state();
+  test("道路的点击范围只跟随描边，不再占满整个矩形",()=>{
+    const st=sandbox.Konva.stages[0]; st.draw();
+    const roadItem=data0.items.find(function(x){return x.type==="road";});
+    const node=layer.children.find(function(n){return n.getAttr("itemId")===roadItem.id;});
+    const s=st.scaleX();
+    const toStage=function(x,y){return {x: st.x()+x*s, y: st.y()+y*s};};
+    const mid=roadItem.pathPoints[Math.floor(roadItem.pathPoints.length/2)];
+    const bx=node.x()-node.width()/2+mid.x, by=node.y()-node.height()/2+mid.y;
+    const on=st.getIntersection(toStage(bx,by));
+    const off=st.getIntersection(toStage(bx+node.width()*0.46,by));
+    assert.ok(on&&on.getAttr("itemId")===roadItem.id,"路径上应能选中道路");
+    assert.ok(!off||off.getAttr("itemId")!==roadItem.id,"矩形远角不应命中道路");
+  });
   let data=await state(),lake=data.items.find(x=>x.type==="lake");
   let lakeNode=layer.children.find(n=>n.getAttr("itemId")===lake.id);lakeNode.fire("click",{cancelBubble:false,evt:{button:0}});
   await el("duplicateBtn").emit("click");stage.draw();data=await state();
