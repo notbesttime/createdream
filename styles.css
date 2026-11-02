@@ -26,11 +26,12 @@ button { color: inherit; }
 .logo-placeholder small { font-size: 8px; margin-top: 3px; color: #8a9b92; }
 .logo-slot img { width: 100%; height: 100%; object-fit: contain; background: #fff; }
 .brand-copy .eyebrow { color: #668174; font-size: 11px; line-height: 1.2; }
-.brand-title-row { display: flex; align-items: center; gap: 9px; }
+.brand-title-row { display: flex; align-items: center; gap: 18px; }
 .brand-copy h1 { margin: 2px 0 0; font-size: 17px; line-height: 1.2; font-weight: 700; letter-spacing: 0; }
-.author-link { display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border: 1px solid #cfe0d6; border-radius: 10px; background: #f2f8f4; color: #3d6f57; font-size: 11px; line-height: 1; text-decoration: none; white-space: nowrap; transition: background .15s, border-color .15s, color .15s; }
-.author-link:hover { background: #e4f1e8; border-color: #b9d4c3; color: #2f6d4d; }
-.author-link:focus-visible { outline: 2px solid #7fb895; outline-offset: 1px; }
+/* 米黄色按钮 */
+.author-link { display: inline-flex; align-items: center; height: 22px; padding: 0 11px; border: 1px solid #e6d6ae; border-radius: 11px; background: #f9f1dd; color: #6f5a33; font-size: 11px; line-height: 1; text-decoration: none; white-space: nowrap; box-shadow: 0 1px 2px rgba(122,99,56,.10); transition: background .15s, border-color .15s, color .15s, box-shadow .15s; }
+.author-link:hover { background: #f4e7c5; border-color: #d9c492; color: #5b4927; box-shadow: 0 2px 5px rgba(122,99,56,.16); }
+.author-link:focus-visible { outline: 2px solid #c9a86a; outline-offset: 2px; }
 .toolbar { display: flex; align-items: center; justify-content: flex-end; gap: 6px; min-width: 0; }
 .tool-btn, .icon-btn { height: 35px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid transparent; border-radius: 6px; padding: 0 10px; color: #4b5c59; background: transparent; cursor: pointer; white-space: nowrap; transition: background .15s, border-color .15s, color .15s; }
 .tool-btn { font-size: 12px; }
