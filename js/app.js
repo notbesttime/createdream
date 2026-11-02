@@ -844,10 +844,6 @@
     syncZOrder(); record();
     showToast(item.overItems?"该"+ (item.type==="bridge"?"木桥":"道路") +"会画在建筑之上":"已恢复为地形层");
   });
-  $("layersCollapse").addEventListener("click",function(){
-    const p=$("layersPanel");p.classList.toggle("is-collapsed");
-    this.textContent=p.classList.contains("is-collapsed")?"+":"–";
-  });
   $("unlockBtn").addEventListener("click",function(){
     let n=0;items.forEach(function(it){if(it.noHit){it.noHit=false;if(it.node){it.node.listening(true);it.node.draggable(true);}n++;}});
     if(n){record();showToast("已解除 "+n+" 个物件的点击锁定");}else{showToast("没有需要解除的锁定");}
