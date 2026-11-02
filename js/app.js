@@ -7,32 +7,7 @@
   const FONT = "Microsoft YaHei, PingFang SC, sans-serif";
   const GRASS_SRC = "assets/grass.webp";
   const DEFAULT_LOGO = "assets/school-logo.png";
-  const CLOUD_SPRITES = ["assets/cloud-1.webp", "assets/cloud-2.webp", "assets/cloud-3.webp"];
-  // 云朵作为画面边界：坐标是地图本地坐标，允许为负（溢出到画布外）。
-  function cloudPlacements() {
-    const w = board.w, h = board.h;
-    const ratio = [330 / 900, 280 / 660, 210 / 460];
-    // cx/cy 是云朵中心相对地图的比例；放在地图边缘外侧，形成一圈“云海”边框
-    return [
-      { i: 0, cx: 0.16, cy: 0.052, s: 0.34, o: 0.98 },
-      { i: 2, cx: 0.40, cy: 0.028, s: 0.15, o: 0.92 },
-      { i: 1, cx: 0.62, cy: 0.055, s: 0.24, o: 0.96 },
-      { i: 2, cx: 0.84, cy: 0.032, s: 0.16, o: 0.90 },
-      { i: 1, cx: 0.955, cy: 0.20, s: 0.18, o: 0.94 },
-      { i: 2, cx: 0.978, cy: 0.46, s: 0.14, o: 0.88 },
-      { i: 1, cx: 0.945, cy: 0.74, s: 0.20, o: 0.94 },
-      { i: 0, cx: 0.18, cy: 0.948, s: 0.30, o: 0.98 },
-      { i: 2, cx: 0.44, cy: 0.968, s: 0.15, o: 0.90 },
-      { i: 1, cx: 0.66, cy: 0.945, s: 0.22, o: 0.96 },
-      { i: 2, cx: 0.86, cy: 0.972, s: 0.13, o: 0.88 },
-      { i: 1, cx: 0.045, cy: 0.30, s: 0.19, o: 0.92 },
-      { i: 2, cx: 0.030, cy: 0.62, s: 0.14, o: 0.86 },
-      { i: 1, cx: 0.055, cy: 0.82, s: 0.17, o: 0.92 }
-    ].map(function (c) {
-      const cw = w * c.s * 1.28, ch = cw * ratio[c.i];
-      return { src: CLOUD_SPRITES[c.i], x: w * c.cx - cw / 2, y: h * c.cy - ch / 2, w: cw, h: ch, opacity: 1 };
-    });
-  }
+  // 云朵全部来自 cloud-sea 贴图，不再单独绘制云朵素材
   const CLOUD_SEA_SRC = "assets/cloud-sea.webp";
   // 整片云海：无缝平铺，作为“飞机视角下的地面云层”
   function paintCloudSea(ctx, w, h) {
@@ -225,19 +200,6 @@
     ART.fadeBoardEdge(ctx, board.w, board.h);
     return canvas;
   }
-  let cloudNodes = [];
-  function renderCloudBorder() {
-    cloudNodes.forEach(function (n) { n.destroy(); });
-    cloudNodes = [];
-    cloudPlacements().forEach(function (c) {
-      const img = window.MapAssets.get(c.src);
-      if (!img) return;
-      const node = new Konva.Image({ image: img, x: c.x, y: c.y, width: c.w, height: c.h, opacity: c.opacity, listening: false });
-      mapLayer.add(node); cloudNodes.push(node);
-    });
-    if (boardImage) boardImage.moveToBottom();
-    mapLayer.batchDraw();
-  }
   function setBoardTexture() {
     board = SIZE[orientation];
     const canvas = boardCanvas();
@@ -247,7 +209,6 @@
     boardImage.moveToBottom();
     $("orientationLabel").textContent = orientation === "portrait" ? "竖版 · 2:3" : "横版 · 3:2";
     $("orientationBtn").innerHTML = orientation === "portrait" ? '<span class="tool-icon">▭</span><span>横屏画布</span>' : '<span class="tool-icon">▯</span><span>竖屏画布</span>';
-    renderCloudBorder();
     mapLayer.batchDraw();
   }
   function ensureItemImage(item) {
@@ -622,7 +583,7 @@
   }
   async function exportPNG() {
     await Promise.all(items.map(ensureItemImage));
-    await window.MapAssets.loadAll(items.map(function (item) { return assetSrc(item.type); }).concat([GRASS_SRC]).concat(CLOUD_SPRITES).concat([CLOUD_SEA_SRC]));
+    await window.MapAssets.loadAll(items.map(function (item) { return assetSrc(item.type); }).concat([GRASS_SRC, CLOUD_SEA_SRC]));
     const usesAssetFiles = items.some(function (item) { return !item.imageData && assetSrc(item.type); });
     if (usesAssetFiles && assetsTaintExport()) {
       showToast("本地双击打开时浏览器禁止导出含图片素材的 PNG：请用本地服务器打开（运行 启动预览.cmd 或 python -m http.server）");
@@ -652,15 +613,6 @@
     const mapScale = .78, mapW = board.w * mapScale, mapH = board.h * mapScale;
     const mapX = (board.w - mapW) / 2, mapY = (board.h - mapH) / 2;
     ctx.drawImage(scene, mapX, mapY, mapW, mapH);
-    // 云层压在陆地边缘：像从飞机上看，只有这一块透出来
-    ctx.save();
-    cloudPlacements().forEach(function (c) {
-      const sprite = window.MapAssets.get(c.src);
-      if (!sprite) return;
-      ctx.globalAlpha = 0.92;
-      ctx.drawImage(sprite, mapX + c.x * mapScale, mapY + c.y * mapScale, c.w * mapScale, c.h * mapScale);
-    });
-    ctx.restore();
     if (logoImage) {
       const logoSize = Math.round(Math.min(board.w, board.h) * .15);
       ctx.save();
@@ -815,7 +767,7 @@
 
   buildPalette();
   renderLogo();
-  window.MapAssets.loadAll(ART.definitions.map(function (d) { return d.src; }).concat([GRASS_SRC]).concat(CLOUD_SPRITES).concat([CLOUD_SEA_SRC])).then(function () { setBoardTexture(); objectsLayer.batchDraw(); });
+  window.MapAssets.loadAll(ART.definitions.map(function (d) { return d.src; }).concat([GRASS_SRC, CLOUD_SEA_SRC])).then(function () { setBoardTexture(); objectsLayer.batchDraw(); });
   const stored=localStorage.getItem(STORE_KEY);
   if(stored){try{restoreData(JSON.parse(stored));history=[copyData()];}catch(e){seedDemo();setBoardTexture();requestAnimationFrame(fitView);history=[copyData()];}}
   else {seedDemo();setBoardTexture();requestAnimationFrame(fitView);history=[copyData()];}
