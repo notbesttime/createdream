@@ -33,10 +33,15 @@
       return { src: CLOUD_SPRITES[c.i], x: w * c.cx - cw / 2, y: h * c.cy - ch / 2, w: cw, h: ch, opacity: 1 };
     });
   }
-  function paintSky(ctx, w, h) {
-    const sky = ctx.createLinearGradient(0, 0, 0, h);
-    sky.addColorStop(0, "#d6ecfa"); sky.addColorStop(.55, "#bfdcf0"); sky.addColorStop(1, "#aecfe6");
-    ctx.fillStyle = sky; ctx.fillRect(0, 0, w, h);
+  const CLOUD_SEA_SRC = "assets/cloud-sea.webp";
+  // 整片云海：无缝平铺，作为“飞机视角下的地面云层”
+  function paintCloudSea(ctx, w, h) {
+    const tile = window.MapAssets.get(CLOUD_SEA_SRC);
+    if (!tile) { ctx.fillStyle = "#eef3f8"; ctx.fillRect(0, 0, w, h); return; }
+    const size = 620;
+    for (let y = -size; y < h + size; y += size) {
+      for (let x = -size; x < w + size; x += size) ctx.drawImage(tile, x, y, size, size);
+    }
   }
   const $ = function (id) { return document.getElementById(id); };
   const stageWrap = $("stageWrap");
@@ -216,12 +221,8 @@
     } else {
       ctx.drawImage(grass, 0, 0, board.w, board.h);
     }
-    // 圆角裁切：底图是一张干净的圆角卡片，云朵在它下面形成边界
-    ctx.save();
-    ctx.globalCompositeOperation = "destination-in";
-    ART.roundRect(ctx, 0, 0, board.w, board.h, 26);
-    ctx.fillStyle = "#ffffff"; ctx.fill();
-    ctx.restore();
+    // 边缘柔化：让陆地融化进云层里，而不是硬边卡片
+    ART.fadeBoardEdge(ctx, board.w, board.h);
     return canvas;
   }
   let cloudNodes = [];
@@ -232,9 +233,9 @@
       const img = window.MapAssets.get(c.src);
       if (!img) return;
       const node = new Konva.Image({ image: img, x: c.x, y: c.y, width: c.w, height: c.h, opacity: c.opacity, listening: false });
-      mapLayer.add(node); node.moveToBottom(); cloudNodes.push(node);
+      mapLayer.add(node); cloudNodes.push(node);
     });
-    if (boardImage) boardImage.moveToTop();
+    if (boardImage) boardImage.moveToBottom();
     mapLayer.batchDraw();
   }
   function setBoardTexture() {
@@ -621,7 +622,7 @@
   }
   async function exportPNG() {
     await Promise.all(items.map(ensureItemImage));
-    await window.MapAssets.loadAll(items.map(function (item) { return assetSrc(item.type); }).concat([GRASS_SRC]).concat(CLOUD_SPRITES));
+    await window.MapAssets.loadAll(items.map(function (item) { return assetSrc(item.type); }).concat([GRASS_SRC]).concat(CLOUD_SPRITES).concat([CLOUD_SEA_SRC]));
     const usesAssetFiles = items.some(function (item) { return !item.imageData && assetSrc(item.type); });
     if (usesAssetFiles && assetsTaintExport()) {
       showToast("本地双击打开时浏览器禁止导出含图片素材的 PNG：请用本地服务器打开（运行 启动预览.cmd 或 python -m http.server）");
@@ -631,7 +632,7 @@
     const scale = 2;
     const canvas = document.createElement("canvas"); canvas.width = board.w * scale; canvas.height = board.h * scale;
     const ctx = canvas.getContext("2d"); ctx.scale(scale, scale);
-    paintSky(ctx, board.w, board.h);
+    paintCloudSea(ctx, board.w, board.h);
     const scene = document.createElement("canvas"); scene.width = board.w; scene.height = board.h;
     const sceneCtx = scene.getContext("2d");
     sceneCtx.drawImage(boardImage.image(), 0, 0, board.w, board.h);
@@ -648,24 +649,17 @@
       sceneCtx.restore();
     });
     items.forEach(function (item) { renderExportLabel(sceneCtx, item); });
-    // 圆角卡片：让地图像一张浮在云上的纸，而不是糊进背景
-    sceneCtx.save(); sceneCtx.globalCompositeOperation = "destination-in";
-    ART.roundRect(sceneCtx, 0, 0, board.w, board.h, 26);
-    sceneCtx.fillStyle = "#ffffff"; sceneCtx.fill(); sceneCtx.restore();
     const mapScale = .78, mapW = board.w * mapScale, mapH = board.h * mapScale;
     const mapX = (board.w - mapW) / 2, mapY = (board.h - mapH) / 2;
-    // 云朵边框：贴着地图四周，压在地图下方
+    ctx.drawImage(scene, mapX, mapY, mapW, mapH);
+    // 云层压在陆地边缘：像从飞机上看，只有这一块透出来
     ctx.save();
     cloudPlacements().forEach(function (c) {
       const sprite = window.MapAssets.get(c.src);
       if (!sprite) return;
-      ctx.globalAlpha = c.opacity;
+      ctx.globalAlpha = 0.92;
       ctx.drawImage(sprite, mapX + c.x * mapScale, mapY + c.y * mapScale, c.w * mapScale, c.h * mapScale);
     });
-    ctx.restore();
-    ctx.save();
-    ctx.shadowColor = "rgba(70,92,80,.20)"; ctx.shadowBlur = 16; ctx.shadowOffsetY = 6;
-    ctx.drawImage(scene, mapX, mapY, mapW, mapH);
     ctx.restore();
     if (logoImage) {
       const logoSize = Math.round(Math.min(board.w, board.h) * .15);
@@ -821,7 +815,7 @@
 
   buildPalette();
   renderLogo();
-  window.MapAssets.loadAll(ART.definitions.map(function (d) { return d.src; }).concat([GRASS_SRC]).concat(CLOUD_SPRITES)).then(function () { setBoardTexture(); objectsLayer.batchDraw(); });
+  window.MapAssets.loadAll(ART.definitions.map(function (d) { return d.src; }).concat([GRASS_SRC]).concat(CLOUD_SPRITES).concat([CLOUD_SEA_SRC])).then(function () { setBoardTexture(); objectsLayer.batchDraw(); });
   const stored=localStorage.getItem(STORE_KEY);
   if(stored){try{restoreData(JSON.parse(stored));history=[copyData()];}catch(e){seedDemo();setBoardTexture();requestAnimationFrame(fitView);history=[copyData()];}}
   else {seedDemo();setBoardTexture();requestAnimationFrame(fitView);history=[copyData()];}

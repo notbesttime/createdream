@@ -72,7 +72,7 @@ button { color: inherit; }
 .palette.is-collapsed .palette-title, .palette.is-collapsed .palette-body { display: none; }
 .palette.is-collapsed .collapse-btn { display: none; }
 .palette.is-collapsed .expand-tab { display: grid; }
-.stage-wrap { min-width: 0; min-height: 0; position: relative; overflow: hidden; background: linear-gradient(180deg,#d9edfb 0%,#c3ddf0 55%,#aecfe6 100%); }
+.stage-wrap { min-width: 0; min-height: 0; position: relative; overflow: hidden; background: #eef3f8 url("assets/cloud-sea.webp") repeat; background-size: 620px 620px; }
 #stageContainer { position: absolute; inset: 0; z-index: 0; background: transparent; }
 #stageContainer canvas { display: block; }
 .stage-topline { position: absolute; z-index: 3; top: 13px; left: 18px; right: 18px; display: flex; align-items: center; justify-content: space-between; pointer-events: none; }
