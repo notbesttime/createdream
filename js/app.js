@@ -590,7 +590,7 @@
       return;
     }
     const logoImage = logoData ? await imageFromData(logoData) : null;
-    const scale = 2;
+    const scale = 1.6;
     const canvas = document.createElement("canvas"); canvas.width = board.w * scale; canvas.height = board.h * scale;
     const ctx = canvas.getContext("2d"); ctx.scale(scale, scale);
     paintCloudSea(ctx, board.w, board.h);
@@ -610,7 +610,7 @@
       sceneCtx.restore();
     });
     items.forEach(function (item) { renderExportLabel(sceneCtx, item); });
-    const mapScale = .78, mapW = board.w * mapScale, mapH = board.h * mapScale;
+    const mapScale = .90, mapW = board.w * mapScale, mapH = board.h * mapScale;
     const mapX = (board.w - mapW) / 2, mapY = (board.h - mapH) / 2;
     ctx.drawImage(scene, mapX, mapY, mapW, mapH);
     if (logoImage) {
