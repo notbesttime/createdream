@@ -19,7 +19,7 @@ const sandbox=vm.createContext({window,document,Image,console,performance,Uint8A
 for(const file of ["vendor/konva.min.js","assets.js","draw.js","paths.js","water.js"]){vm.runInContext(fs.readFileSync(path.join(root,"js",file),"utf8"),sandbox,{filename:file});}
 let assetReads=0;
 // Test-only: node-canvas cannot decode WebP, so the same sprites are read from PNG copies.
-const assetFiles={"assets/new-building.webp":path.join(__dirname,"fixtures","new-building-probe.png"),"assets/tree.webp":path.join(__dirname,"fixtures","tree-probe.png"),"assets/grass.webp":path.join(__dirname,"fixtures","grass-probe.png"),"assets/brick-left.webp":path.join(__dirname,"fixtures","brick-left-probe.png"),"assets/brick-right.webp":path.join(__dirname,"fixtures","brick-right-probe.png"),"assets/round.webp":path.join(__dirname,"fixtures","round-probe.png")};
+const assetFiles={"assets/cloud-1.webp":path.join(__dirname,"fixtures","cloud-1-probe.png"),"assets/cloud-2.webp":path.join(__dirname,"fixtures","cloud-2-probe.png"),"assets/cloud-3.webp":path.join(__dirname,"fixtures","cloud-3-probe.png"),"assets/new-building.webp":path.join(__dirname,"fixtures","new-building-probe.png"),"assets/tree.webp":path.join(__dirname,"fixtures","tree-probe.png"),"assets/grass.webp":path.join(__dirname,"fixtures","grass-probe.png"),"assets/brick-left.webp":path.join(__dirname,"fixtures","brick-left-probe.png"),"assets/brick-right.webp":path.join(__dirname,"fixtures","brick-right-probe.png"),"assets/round.webp":path.join(__dirname,"fixtures","round-probe.png")};
 const assetBitmaps={};
 function loadAsset(src){const file=assetFiles[src];if(!file)return Promise.resolve(null);return new Promise(resolve=>{const image=new Image();image.onload=()=>{assetBitmaps[src]=image;resolve(image);};image.onerror=()=>resolve(null);image.src=fs.readFileSync(file);});}
 window.MapAssets={load:loadAsset,loadAll:list=>Promise.all(Array.from(new Set(list.filter(Boolean))).map(loadAsset)),get:src=>{assetReads+=1;return assetBitmaps[src]||null;},ready:src=>!!assetBitmaps[src],subscribe:(src,fn)=>{if(assetBitmaps[src])fn(assetBitmaps[src]);return()=>{};},stats:()=>({files:2,decoded:Object.keys(assetBitmaps).length})};
@@ -32,7 +32,7 @@ let passed=0;function test(name,run){run();passed++;console.log("PASS "+name);}c
   stage.draw();
   test("app boots with actual Konva and a bottom water surface",()=>{assert.equal(el("itemCount").textContent,"15 个物件");assert.equal(layer.children[0].listening(),false);assert.ok(layer.children.some(n=>n.getAttr("itemId")));});
   test("map base is the grass texture, not the hand-drawn board",()=>{
-    const board=stage.children[0].children[0].image();
+    const board=stage.children[0].children.map(function(n){return n.image&&n.image();}).filter(function(img){return img&&img.width===1000&&img.height===1500;})[0];
     const ctx=board.getContext("2d");
     const centre=ctx.getImageData(Math.floor(board.width/2),Math.floor(board.height/2),1,1).data;
     const probe=createCanvas(1,1).getContext("2d");

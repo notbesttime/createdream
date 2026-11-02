@@ -7,6 +7,37 @@
   const FONT = "Microsoft YaHei, PingFang SC, sans-serif";
   const GRASS_SRC = "assets/grass.webp";
   const DEFAULT_LOGO = "assets/school-logo.png";
+  const CLOUD_SPRITES = ["assets/cloud-1.webp", "assets/cloud-2.webp", "assets/cloud-3.webp"];
+  // 云朵作为画面边界：坐标是地图本地坐标，允许为负（溢出到画布外）。
+  function cloudPlacements() {
+    const w = board.w, h = board.h;
+    const ratio = [330 / 900, 280 / 660, 210 / 460];
+    // cx/cy 是云朵中心相对地图的比例；放在地图边缘外侧，形成一圈“云海”边框
+    return [
+      { i: 0, cx: 0.16, cy: 0.052, s: 0.34, o: 0.98 },
+      { i: 2, cx: 0.40, cy: 0.028, s: 0.15, o: 0.92 },
+      { i: 1, cx: 0.62, cy: 0.055, s: 0.24, o: 0.96 },
+      { i: 2, cx: 0.84, cy: 0.032, s: 0.16, o: 0.90 },
+      { i: 1, cx: 0.955, cy: 0.20, s: 0.18, o: 0.94 },
+      { i: 2, cx: 0.978, cy: 0.46, s: 0.14, o: 0.88 },
+      { i: 1, cx: 0.945, cy: 0.74, s: 0.20, o: 0.94 },
+      { i: 0, cx: 0.18, cy: 0.948, s: 0.30, o: 0.98 },
+      { i: 2, cx: 0.44, cy: 0.968, s: 0.15, o: 0.90 },
+      { i: 1, cx: 0.66, cy: 0.945, s: 0.22, o: 0.96 },
+      { i: 2, cx: 0.86, cy: 0.972, s: 0.13, o: 0.88 },
+      { i: 1, cx: 0.045, cy: 0.30, s: 0.19, o: 0.92 },
+      { i: 2, cx: 0.030, cy: 0.62, s: 0.14, o: 0.86 },
+      { i: 1, cx: 0.055, cy: 0.82, s: 0.17, o: 0.92 }
+    ].map(function (c) {
+      const cw = w * c.s * 1.28, ch = cw * ratio[c.i];
+      return { src: CLOUD_SPRITES[c.i], x: w * c.cx - cw / 2, y: h * c.cy - ch / 2, w: cw, h: ch, opacity: 1 };
+    });
+  }
+  function paintSky(ctx, w, h) {
+    const sky = ctx.createLinearGradient(0, 0, 0, h);
+    sky.addColorStop(0, "#d6ecfa"); sky.addColorStop(.55, "#bfdcf0"); sky.addColorStop(1, "#aecfe6");
+    ctx.fillStyle = sky; ctx.fillRect(0, 0, w, h);
+  }
   const $ = function (id) { return document.getElementById(id); };
   const stageWrap = $("stageWrap");
   const stageContainer = $("stageContainer");
@@ -185,8 +216,26 @@
     } else {
       ctx.drawImage(grass, 0, 0, board.w, board.h);
     }
-    ART.fadeBoardEdge(ctx, board.w, board.h);
+    // 圆角裁切：底图是一张干净的圆角卡片，云朵在它下面形成边界
+    ctx.save();
+    ctx.globalCompositeOperation = "destination-in";
+    ART.roundRect(ctx, 0, 0, board.w, board.h, 26);
+    ctx.fillStyle = "#ffffff"; ctx.fill();
+    ctx.restore();
     return canvas;
+  }
+  let cloudNodes = [];
+  function renderCloudBorder() {
+    cloudNodes.forEach(function (n) { n.destroy(); });
+    cloudNodes = [];
+    cloudPlacements().forEach(function (c) {
+      const img = window.MapAssets.get(c.src);
+      if (!img) return;
+      const node = new Konva.Image({ image: img, x: c.x, y: c.y, width: c.w, height: c.h, opacity: c.opacity, listening: false });
+      mapLayer.add(node); node.moveToBottom(); cloudNodes.push(node);
+    });
+    if (boardImage) boardImage.moveToTop();
+    mapLayer.batchDraw();
   }
   function setBoardTexture() {
     board = SIZE[orientation];
@@ -197,6 +246,7 @@
     boardImage.moveToBottom();
     $("orientationLabel").textContent = orientation === "portrait" ? "竖版 · 2:3" : "横版 · 3:2";
     $("orientationBtn").innerHTML = orientation === "portrait" ? '<span class="tool-icon">▭</span><span>横屏画布</span>' : '<span class="tool-icon">▯</span><span>竖屏画布</span>';
+    renderCloudBorder();
     mapLayer.batchDraw();
   }
   function ensureItemImage(item) {
@@ -571,7 +621,7 @@
   }
   async function exportPNG() {
     await Promise.all(items.map(ensureItemImage));
-    await window.MapAssets.loadAll(items.map(function (item) { return assetSrc(item.type); }).concat([GRASS_SRC]));
+    await window.MapAssets.loadAll(items.map(function (item) { return assetSrc(item.type); }).concat([GRASS_SRC]).concat(CLOUD_SPRITES));
     const usesAssetFiles = items.some(function (item) { return !item.imageData && assetSrc(item.type); });
     if (usesAssetFiles && assetsTaintExport()) {
       showToast("本地双击打开时浏览器禁止导出含图片素材的 PNG：请用本地服务器打开（运行 启动预览.cmd 或 python -m http.server）");
@@ -581,7 +631,7 @@
     const scale = 2;
     const canvas = document.createElement("canvas"); canvas.width = board.w * scale; canvas.height = board.h * scale;
     const ctx = canvas.getContext("2d"); ctx.scale(scale, scale);
-    ART.drawWater(ctx, board.w, board.h);
+    paintSky(ctx, board.w, board.h);
     const scene = document.createElement("canvas"); scene.width = board.w; scene.height = board.h;
     const sceneCtx = scene.getContext("2d");
     sceneCtx.drawImage(boardImage.image(), 0, 0, board.w, board.h);
@@ -598,18 +648,31 @@
       sceneCtx.restore();
     });
     items.forEach(function (item) { renderExportLabel(sceneCtx, item); });
+    // 圆角卡片：让地图像一张浮在云上的纸，而不是糊进背景
     sceneCtx.save(); sceneCtx.globalCompositeOperation = "destination-in";
-    const fadeX = sceneCtx.createLinearGradient(0, 0, board.w, 0);
-    fadeX.addColorStop(0, "rgba(255,255,255,0)"); fadeX.addColorStop(.05, "rgba(255,255,255,1)"); fadeX.addColorStop(.95, "rgba(255,255,255,1)"); fadeX.addColorStop(1, "rgba(255,255,255,0)");
-    sceneCtx.fillStyle = fadeX; sceneCtx.fillRect(0, 0, board.w, board.h);
-    const fadeY = sceneCtx.createLinearGradient(0, 0, 0, board.h);
-    fadeY.addColorStop(0, "rgba(255,255,255,0)"); fadeY.addColorStop(.05, "rgba(255,255,255,1)"); fadeY.addColorStop(.95, "rgba(255,255,255,1)"); fadeY.addColorStop(1, "rgba(255,255,255,0)");
-    sceneCtx.fillStyle = fadeY; sceneCtx.fillRect(0, 0, board.w, board.h); sceneCtx.restore();
-    const mapScale = .84, mapW = board.w * mapScale, mapH = board.h * mapScale;
-    ctx.drawImage(scene, (board.w - mapW) / 2, (board.h - mapH) / 2, mapW, mapH);
+    ART.roundRect(sceneCtx, 0, 0, board.w, board.h, 26);
+    sceneCtx.fillStyle = "#ffffff"; sceneCtx.fill(); sceneCtx.restore();
+    const mapScale = .78, mapW = board.w * mapScale, mapH = board.h * mapScale;
+    const mapX = (board.w - mapW) / 2, mapY = (board.h - mapH) / 2;
+    // 云朵边框：贴着地图四周，压在地图下方
+    ctx.save();
+    cloudPlacements().forEach(function (c) {
+      const sprite = window.MapAssets.get(c.src);
+      if (!sprite) return;
+      ctx.globalAlpha = c.opacity;
+      ctx.drawImage(sprite, mapX + c.x * mapScale, mapY + c.y * mapScale, c.w * mapScale, c.h * mapScale);
+    });
+    ctx.restore();
+    ctx.save();
+    ctx.shadowColor = "rgba(70,92,80,.20)"; ctx.shadowBlur = 16; ctx.shadowOffsetY = 6;
+    ctx.drawImage(scene, mapX, mapY, mapW, mapH);
+    ctx.restore();
     if (logoImage) {
-      ctx.save(); ART.roundRect(ctx, 28, 26, 112, 72, 4); ctx.fillStyle = "rgba(249,248,241,.96)"; ctx.fill(); ctx.strokeStyle = "rgba(124,127,111,.48)"; ctx.lineWidth = 1; ctx.stroke();
-      const logoScale = Math.min(96 / logoImage.width, 56 / logoImage.height); ctx.drawImage(logoImage, 36 + (96 - logoImage.width * logoScale) / 2, 34 + (56 - logoImage.height * logoScale) / 2, logoImage.width * logoScale, logoImage.height * logoScale); ctx.restore();
+      const logoSize = Math.round(Math.min(board.w, board.h) * .15);
+      ctx.save();
+      ctx.shadowColor = "rgba(56,74,66,.22)"; ctx.shadowBlur = 12; ctx.shadowOffsetY = 4;
+      ctx.drawImage(logoImage, 24, 20, logoSize, logoSize);
+      ctx.restore();
     }
     const compassSize = Math.round(Math.min(board.w, board.h) * .128);
     ART.drawCompass(ctx, 30, board.h - compassSize - 28, compassSize);
@@ -617,7 +680,7 @@
     try { dataUrl = canvas.toDataURL("image/png"); }
     catch (err) { showToast("当前打开方式禁止导出图片，请用本地服务器打开后重试"); return; }
     const a = document.createElement("a"); a.download = "湖南理工大学-南湖创梦空间-校园地图.png"; a.href = dataUrl; a.click();
-    showToast("已导出高清地图，地图留白并放大指南针");
+    showToast("已导出高清地图：云朵边框 + 圆形校徽");
   }
   function downloadFile(name, content, type) {
     const blob=new Blob([content],{type:type});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=name;a.click();setTimeout(function(){URL.revokeObjectURL(url);},1000);
@@ -758,7 +821,7 @@
 
   buildPalette();
   renderLogo();
-  window.MapAssets.loadAll(ART.definitions.map(function (d) { return d.src; }).concat([GRASS_SRC])).then(function () { setBoardTexture(); objectsLayer.batchDraw(); });
+  window.MapAssets.loadAll(ART.definitions.map(function (d) { return d.src; }).concat([GRASS_SRC]).concat(CLOUD_SPRITES)).then(function () { setBoardTexture(); objectsLayer.batchDraw(); });
   const stored=localStorage.getItem(STORE_KEY);
   if(stored){try{restoreData(JSON.parse(stored));history=[copyData()];}catch(e){seedDemo();setBoardTexture();requestAnimationFrame(fitView);history=[copyData()];}}
   else {seedDemo();setBoardTexture();requestAnimationFrame(fitView);history=[copyData()];}

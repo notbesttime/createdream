@@ -72,8 +72,8 @@ button { color: inherit; }
 .palette.is-collapsed .palette-title, .palette.is-collapsed .palette-body { display: none; }
 .palette.is-collapsed .collapse-btn { display: none; }
 .palette.is-collapsed .expand-tab { display: grid; }
-.stage-wrap { min-width: 0; min-height: 0; position: relative; overflow: hidden; background-color: #cbd4b4; }
-#stageContainer { position: absolute; inset: 0; z-index: 0; background: #cbd4b4; }
+.stage-wrap { min-width: 0; min-height: 0; position: relative; overflow: hidden; background: linear-gradient(180deg,#d9edfb 0%,#c3ddf0 55%,#aecfe6 100%); }
+#stageContainer { position: absolute; inset: 0; z-index: 0; background: transparent; }
 #stageContainer canvas { display: block; }
 .stage-topline { position: absolute; z-index: 3; top: 13px; left: 18px; right: 18px; display: flex; align-items: center; justify-content: space-between; pointer-events: none; }
 .canvas-caption, .zoom-controls { pointer-events: auto; height: 30px; display: flex; align-items: center; gap: 7px; padding: 0 10px; border: 1px solid rgba(214, 228, 222, .95); border-radius: 6px; background: rgba(255,255,255,.92); box-shadow: 0 2px 7px rgba(47,79,72,.06); color: #5d7168; font-size: 10px; }
