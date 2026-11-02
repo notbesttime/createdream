@@ -38,5 +38,6 @@ jobs:
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ env.CF_PAGES_TOKEN }}
+          wranglerVersion: '3.114.17'
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || '50f84b6494830b21bb71946ecc906309' }}
           command: pages deploy dist --project-name=createdream --branch=main
