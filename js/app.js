@@ -185,6 +185,7 @@
     }
     scheduleSave();
     updateHistoryButtons();
+    renderLayers();
   }
   function updateHistoryButtons() {
     $("undoBtn").disabled = history.length < 2;
@@ -353,6 +354,80 @@
     objectsLayer.batchDraw();
   }
   function updateCount() { $("itemCount").textContent = items.length + " 个物件"; }
+
+  // ---------------- 图层面板 ----------------
+  let layerDragId = null, layerJustDragged = false;
+  function layerLabel(item) {
+    if (item.name) return item.name;
+    const def = ART.definitions.find(function (d) { return d.type === item.type; });
+    return (def && def.label) || item.type;
+  }
+  function clearDropMarks() {
+    const list = $("layersList");
+    if (!list) return;
+    Array.prototype.forEach.call(list.children, function (row) { row.classList.remove("drop-above", "drop-below"); });
+  }
+  function markDrop(row, evt) {
+    clearDropMarks();
+    const rect = row.getBoundingClientRect();
+    row.classList.add((evt.clientY - rect.top) > rect.height / 2 ? "drop-below" : "drop-above");
+  }
+  function dropLayer(targetId, evt) {
+    clearDropMarks();
+    if (!layerDragId || layerDragId === targetId) return;
+    const from = items.findIndex(function (x) { return x.id === layerDragId; });
+    const to = items.findIndex(function (x) { return x.id === targetId; });
+    if (from < 0 || to < 0) return;
+    const rect = evt.currentTarget.getBoundingClientRect();
+    const below = (evt.clientY - rect.top) > rect.height / 2;
+    let insert = to;
+    if (from < to) insert -= 1;
+    if (!below) insert += 1; else insert += 0;
+    const moved = items.splice(from, 1)[0];
+    insert = Math.max(0, Math.min(items.length, insert));
+    items.splice(insert, 0, moved);
+    layerJustDragged = true;
+    setTimeout(function () { layerJustDragged = false; }, 60);
+    syncZOrder(); record(); selectItem(moved.id);
+  }
+  function renderLayers() {
+    const list = $("layersList");
+    if (!list) return;
+    list.innerHTML = "";
+    for (let i = items.length - 1; i >= 0; i--) {
+      const item = items[i];
+      const row = document.createElement("div");
+      row.className = "layer-row" + (item.id === selectedId ? " is-active" : "");
+      row.dataset.id = item.id;
+      row.draggable = true;
+      const num = document.createElement("span"); num.className = "layer-num"; num.textContent = String(i);
+      const name = document.createElement("span"); name.className = "layer-name"; name.textContent = layerLabel(item);
+      row.appendChild(num); row.appendChild(name);
+      if (isSharedPath(item)) {
+        const tag = document.createElement("span"); tag.className = "layer-tag";
+        tag.textContent = item.overItems ? "顶层" : "地形层";
+        row.appendChild(tag);
+      }
+      if (item.noHit) {
+        const tag2 = document.createElement("span"); tag2.className = "layer-tag"; tag2.textContent = "穿透";
+        row.appendChild(tag2);
+      }
+      row.addEventListener("click", function () {
+        if (layerJustDragged) return;
+        selectItem(item.id);
+      });
+      row.addEventListener("dragstart", function (evt) {
+        layerDragId = item.id; row.classList.add("is-dragging");
+        if (evt.dataTransfer) { evt.dataTransfer.effectAllowed = "move"; try { evt.dataTransfer.setData("text/plain", item.id); } catch (e) {} }
+      });
+      row.addEventListener("dragend", function () { layerDragId = null; row.classList.remove("is-dragging"); clearDropMarks(); });
+      row.addEventListener("dragover", function (evt) { evt.preventDefault(); if (evt.dataTransfer) evt.dataTransfer.dropEffect = "move"; markDrop(row, evt); });
+      row.addEventListener("dragleave", function () { row.classList.remove("drop-above", "drop-below"); });
+      row.addEventListener("drop", function (evt) { evt.preventDefault(); dropLayer(item.id, evt); });
+      list.appendChild(row);
+    }
+  }
+
   function selectItem(itemId, quiet) {
     selectedId = itemId;
     const item = items.find(function (x) { return x.id === itemId; });
@@ -376,6 +451,7 @@
       inspector.hidden = true;
     }
     updateLabels(); objectsLayer.batchDraw();
+    renderLayers();
     if (!quiet) updateCount();
   }
   function updateInspector() {
@@ -767,6 +843,10 @@
     item.overItems=this.checked;
     syncZOrder(); record();
     showToast(item.overItems?"该"+ (item.type==="bridge"?"木桥":"道路") +"会画在建筑之上":"已恢复为地形层");
+  });
+  $("layersCollapse").addEventListener("click",function(){
+    const p=$("layersPanel");p.classList.toggle("is-collapsed");
+    this.textContent=p.classList.contains("is-collapsed")?"+":"–";
   });
   $("unlockBtn").addEventListener("click",function(){
     let n=0;items.forEach(function(it){if(it.noHit){it.noHit=false;if(it.node){it.node.listening(true);it.node.draggable(true);}n++;}});

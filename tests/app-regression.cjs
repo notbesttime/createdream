@@ -58,6 +58,22 @@ let passed=0;function test(name,run){run();passed++;console.log("PASS "+name);}c
     assert.ok(!off||off.getAttr("itemId")!==roadItem.id,"矩形远角不应命中道路");
   });
   let data=await state(),lake=data.items.find(x=>x.type==="lake");
+  test("图层面板列出所有物件，并可选中被设为点击穿透的物件",()=>{
+    const rows=el("layersList").children;
+    assert.equal(rows.length,data.items.length,"图层行数应等于物件数");
+    assert.equal(rows[0].children[0].textContent,String(data.items.length-1),"顶层编号应为 n-1");
+    const road=data.items.find(function(x){return x.type==="road";});
+    const brick=data.items.find(function(x){return x.type==="brick";});
+    el("layersList").children.find(function(r){return r.dataset.id===road.id;}).emit("click");
+    assert.equal(el("inspectorType").textContent,"道路");
+    el("noHitInput").checked=true; el("noHitInput").emit("change");
+    el("layersList").children.find(function(r){return r.dataset.id===brick.id;}).emit("click");
+    assert.notEqual(el("inspectorType").textContent,"道路","切换到其它物件");
+    el("layersList").children.find(function(r){return r.dataset.id===road.id;}).emit("click");
+    assert.equal(el("inspectorType").textContent,"道路","点击穿透的物件仍然能从图层里选中");
+    el("noHitInput").checked=false; el("noHitInput").emit("change");
+  });
+
   let lakeNode=layer.children.find(n=>n.getAttr("itemId")===lake.id);lakeNode.fire("click",{cancelBubble:false,evt:{button:0}});
   await el("duplicateBtn").emit("click");stage.draw();data=await state();
   test("duplicating a lake retains separate editable source objects",()=>assert.equal(data.items.filter(x=>x.type==="lake").length,2));
