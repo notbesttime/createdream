@@ -88,7 +88,22 @@
       raw.drawImage(window.MapPaths.renderBridges(board.w, board.h, pathSnapshots("bridge")), 0, 0);
     }
   });
+  const roadTopSurface = new Konva.Shape({
+    listening: false,
+    sceneFunc: function (ctx) {
+      const raw = ctx._context || ctx;
+      raw.drawImage(window.MapPaths.renderRoads(board.w, board.h, pathSnapshots("road", true)), 0, 0);
+    }
+  });
+  const bridgeTopSurface = new Konva.Shape({
+    listening: false,
+    sceneFunc: function (ctx) {
+      const raw = ctx._context || ctx;
+      raw.drawImage(window.MapPaths.renderBridges(board.w, board.h, pathSnapshots("bridge", true)), 0, 0);
+    }
+  });
   objectsLayer.add(roadSurface); objectsLayer.add(bridgeSurface);
+  objectsLayer.add(roadTopSurface); objectsLayer.add(bridgeTopSurface);
 
   function isSharedLake(item) { return item.type === "lake" && !item.imageData; }
   function isSharedPath(item) { return (item.type === "road" || item.type === "bridge") && !item.imageData; }
@@ -104,8 +119,8 @@
       return { x: node.x() + x * cos - y * sin, y: node.y() + x * sin + y * cos };
     });
   }
-  function pathSnapshots(kind) {
-    return items.filter(function (item) { return isSharedPath(item) && item.type === kind; }).map(function (item) {
+  function pathSnapshots(kind, over) {
+    return items.filter(function (item) { return isSharedPath(item) && item.type === kind && (!!item.overItems === !!over); }).map(function (item) {
       const points = absolutePath(item) || [];
       const node = item.node;
       const sx = node ? node.width() / (item.pathBaseW || node.width() || 1) : 1;
@@ -145,7 +160,7 @@
   }
   function copyData() {
     return JSON.stringify({ orientation: orientation, snapEnabled: snapEnabled, logoData: logoData, items: items.map(function (item) {
-      return { id: item.id, type: item.type, x: item.x, y: item.y, w: item.w, h: item.h, rotation: item.rotation, name: item.name, showName: item.showName, pathPoints: item.pathPoints || null, pathBaseW: item.pathBaseW || null, pathBaseH: item.pathBaseH || null, pathThickness: item.pathThickness || null, tint: item.tint || null, noHit: !!item.noHit, imageData: item.imageData || "" };
+      return { id: item.id, type: item.type, x: item.x, y: item.y, w: item.w, h: item.h, rotation: item.rotation, name: item.name, showName: item.showName, pathPoints: item.pathPoints || null, pathBaseW: item.pathBaseW || null, pathBaseH: item.pathBaseH || null, pathThickness: item.pathThickness || null, tint: item.tint || null, noHit: !!item.noHit, overItems: !!item.overItems, imageData: item.imageData || "" };
     }) });
   }
   function persist() {
@@ -315,6 +330,7 @@
   function redrawItems() {
     objectsLayer.removeChildren();
     objectsLayer.add(waterSurface); objectsLayer.add(roadSurface); objectsLayer.add(bridgeSurface);
+    objectsLayer.add(roadTopSurface); objectsLayer.add(bridgeTopSurface);
     labelsOverlay.innerHTML = "";
     items.forEach(function (item) { item.node = null; item.labelEl = null; renderShape(item); makeLabel(item); });
     objectsLayer.add(transformer);
@@ -327,6 +343,7 @@
     roadSurface.zIndex(1); bridgeSurface.zIndex(2);
     const ordered = items.filter(isSharedLake).concat(items.filter(function (item) { return !isSharedLake(item); }));
     ordered.forEach(function (item, index) { if (item.node) item.node.zIndex(index + 3); });
+    roadTopSurface.moveToTop(); bridgeTopSurface.moveToTop();
     transformer.moveToTop();
     objectsLayer.batchDraw();
   }
@@ -345,6 +362,8 @@
       $("showNameInput").checked = item.showName !== false;
       $("noHitRow").hidden = !isSharedPath(item);
       $("noHitInput").checked = !!item.noHit;
+      $("overItemsRow").hidden = !isSharedPath(item);
+      $("overItemsInput").checked = !!item.overItems;
       $("widthInput").value = Math.round(item.w);
       $("heightInput").value = Math.round(item.h);
       $("rotationInput").value = Math.round(item.node.rotation());
@@ -518,7 +537,7 @@
       if (!def) return null;
       const pathPoints = Array.isArray(x.pathPoints) ? x.pathPoints.filter(function (p) { return p && Number.isFinite(Number(p.x)) && Number.isFinite(Number(p.y)); }).map(function (p) { return { x: Number(p.x), y: Number(p.y) }; }) : null;
       const imageData = typeof x.imageData === "string" && /^data:image\/(png|jpeg|webp|gif);base64,/i.test(x.imageData) ? x.imageData : "";
-      return { id: x.id || id(), type: x.type, x: Number(x.x)||0, y: Number(x.y)||0, w: Math.max(24, Number(x.w)||def.w), h: Math.max(24, Number(x.h)||def.h), rotation: Number(x.rotation)||0, name: String(x.name||""), showName: x.showName !== false, pathPoints: pathPoints, pathBaseW: Math.max(1, Number(x.pathBaseW)||Number(x.w)||def.w), pathBaseH: Math.max(1, Number(x.pathBaseH)||Number(x.h)||def.h), pathThickness: Math.max(0, Number(x.pathThickness)||0), tint: /^#[0-9a-f]{6}$/i.test(x.tint||"") ? x.tint : "", noHit: x.noHit === true, imageData: imageData, imageElement: null };
+      return { id: x.id || id(), type: x.type, x: Number(x.x)||0, y: Number(x.y)||0, w: Math.max(24, Number(x.w)||def.w), h: Math.max(24, Number(x.h)||def.h), rotation: Number(x.rotation)||0, name: String(x.name||""), showName: x.showName !== false, pathPoints: pathPoints, pathBaseW: Math.max(1, Number(x.pathBaseW)||Number(x.w)||def.w), pathBaseH: Math.max(1, Number(x.pathBaseH)||Number(x.h)||def.h), pathThickness: Math.max(0, Number(x.pathThickness)||0), tint: /^#[0-9a-f]{6}$/i.test(x.tint||"") ? x.tint : "", noHit: x.noHit === true, overItems: x.overItems === true, imageData: imageData, imageElement: null };
     }).filter(Boolean) : [];
     selectedId = null;
     orientationTransform = null;
@@ -619,6 +638,9 @@
       else ART.draw[item.type](sceneCtx, item.w, item.h, item);
       sceneCtx.restore();
     });
+    // 勾选了「渲染在建筑之上」的道路/桥梁，最后再画一遍
+    sceneCtx.drawImage(window.MapPaths.renderRoads(board.w, board.h, pathSnapshots("road", true)), 0, 0);
+    sceneCtx.drawImage(window.MapPaths.renderBridges(board.w, board.h, pathSnapshots("bridge", true)), 0, 0);
     items.forEach(function (item) { renderExportLabel(sceneCtx, item); });
     const mapScale = .90, mapW = board.w * mapScale, mapH = board.h * mapScale;
     const mapX = (board.w - mapW) / 2, mapY = (board.h - mapH) / 2;
@@ -732,6 +754,12 @@
     if(item.noHit){transformer.nodes([]);}
     record();
     showToast(item.noHit?"该物件已点击穿透：暂时无法被选中":"已恢复该物件的点击");
+  });
+  $("overItemsInput").addEventListener("change",function(){
+    const item=items.find(function(x){return x.id===selectedId;});if(!item)return;
+    item.overItems=this.checked;
+    syncZOrder(); record();
+    showToast(item.overItems?"该"+ (item.type==="bridge"?"木桥":"道路") +"会画在建筑之上":"已恢复为地形层");
   });
   $("unlockBtn").addEventListener("click",function(){
     let n=0;items.forEach(function(it){if(it.noHit){it.noHit=false;if(it.node){it.node.listening(true);it.node.draggable(true);}n++;}});
