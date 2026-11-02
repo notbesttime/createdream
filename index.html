@@ -58,6 +58,11 @@
       <section class="stage-wrap" id="stageWrap" aria-label="校园地图画布">
         <div class="stage-topline">
           <div class="canvas-caption"><span class="live-dot"></span><span>布局画布</span><span class="caption-sep">/</span><span id="orientationLabel">竖版 · 2:3</span></div>
+          <div class="zoom-controls" id="zoomControls">
+            <button id="zoomOutBtn" class="zoom-btn" title="缩小">−</button>
+            <span id="zoomReadout">100%</span>
+            <button id="zoomInBtn" class="zoom-btn" title="放大">+</button>
+          </div>
         </div>
         <div id="stageContainer"></div>
         <div id="labelsOverlay" class="labels-overlay"></div>
@@ -79,19 +84,8 @@
         <div class="canvas-status"><span id="itemCount">0 个物件</span><span class="status-sep">·</span><span id="saveState">已自动保存</span></div>
       </section>
 
-      <aside class="dock" id="dock">
-        <div class="dock-block dock-zoom">
-          <div class="dock-label">画布缩放</div>
-          <div class="zoom-row">
-            <button id="zoomOutBtn" class="zoom-btn" title="缩小">−</button>
-            <span id="zoomReadout">100%</span>
-            <button id="zoomInBtn" class="zoom-btn" title="放大">+</button>
-          </div>
-        </div>
-        <div class="dock-block dock-detail">
-          <div class="dock-label">物件详情</div>
-          <aside class="inspector" id="inspector" hidden>
-        <div class="inspector-head">
+      <aside class="inspector float-panel" id="inspector" hidden>
+        <div class="inspector-head" id="inspectorDragHandle">
           <div><span class="inspector-kicker">当前物件</span><h2 id="inspectorType">建筑</h2></div>
           <button id="inspectorClose" class="close-btn" title="取消选择" aria-label="取消选择">×</button>
         </div>
@@ -120,16 +114,14 @@
           <button id="deleteBtn" class="action-btn danger-action"><span>×</span>删除</button>
         </div>
       </aside>
-          <div class="dock-empty" id="detailHint">未选中物件 —— 点画布上的物件，或点下方图层</div>
+
+      <aside class="layers-panel float-panel" id="layersPanel">
+        <div class="layers-head" id="layersDragHandle">
+          <span class="layers-title">图层</span>
+          <span class="layers-order">0 最底</span>
         </div>
-        <div class="dock-block dock-layers">
-          <div class="layers-head">
-            <span class="layers-title">图层</span>
-            <span class="layers-order">0 最底 · 数字越大越靠上</span>
-          </div>
-          <div class="layers-list" id="layersList"></div>
-          <div class="layers-tip">点名称可选中；按住上下拖动可调层级</div>
-        </div>
+        <div class="layers-list" id="layersList"></div>
+        <div class="layers-tip">点名称可选中；按住上下拖动可调层级</div>
       </aside>
       <div class="toast" id="toast" role="status" aria-live="polite"></div>
     </main>

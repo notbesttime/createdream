@@ -844,6 +844,64 @@
     syncZOrder(); record();
     showToast(item.overItems?"该"+ (item.type==="bridge"?"木桥":"道路") +"会画在建筑之上":"已恢复为地形层");
   });
+
+  // ---------------- 浮动面板：可拖动 + 左右边界吸附 ----------------
+  function initPanelDrag(panelId, handleId) {
+    const panel = $(panelId), handle = $(handleId);
+    if (!panel || !handle) return;
+    const KEY = "ddhx-panel-pos-" + panelId;
+    try {
+      const saved = JSON.parse(localStorage.getItem(KEY) || "null");
+      if (saved && typeof saved.left === "number" && isFinite(saved.left)) {
+        panel.style.left = saved.left + "px"; panel.style.top = saved.top + "px";
+        panel.style.right = "auto"; panel.style.bottom = "auto";
+      }
+    } catch (e) {}
+    let drag = null;
+    function box() {
+      const host = panel.offsetParent || document.body;
+      const hb = host.getBoundingClientRect();
+      const sb = $("stageWrap").getBoundingClientRect();
+      return { hb: hb, minX: sb.left - hb.left, minY: sb.top - hb.top,
+        maxX: sb.right - hb.left - panel.offsetWidth, maxY: sb.bottom - hb.top - panel.offsetHeight };
+    }
+    handle.addEventListener("pointerdown", function (evt) {
+      if (evt.target && evt.target.closest && evt.target.closest("button,input,select,a")) return;
+      const host = panel.offsetParent || document.body;
+      const pb = panel.getBoundingClientRect(), hb = host.getBoundingClientRect();
+      panel.style.left = (pb.left - hb.left) + "px";
+      panel.style.top = (pb.top - hb.top) + "px";
+      panel.style.right = "auto"; panel.style.bottom = "auto";
+      drag = { dx: evt.clientX - pb.left, dy: evt.clientY - pb.top };
+      panel.classList.add("is-dragging-panel");
+      try { handle.setPointerCapture(evt.pointerId); } catch (e) {}
+      evt.preventDefault();
+    });
+    handle.addEventListener("pointermove", function (evt) {
+      if (!drag) return;
+      const b = box(), host = panel.offsetParent || document.body, hb = host.getBoundingClientRect();
+      let x = evt.clientX - hb.left - drag.dx, y = evt.clientY - hb.top - drag.dy;
+      const SNAP = 20;
+      if (Math.abs(x - b.minX) < SNAP) x = b.minX;
+      if (Math.abs(x - b.maxX) < SNAP) x = b.maxX;
+      if (Math.abs(y - b.minY) < SNAP) y = b.minY;
+      if (Math.abs(y - b.maxY) < SNAP) y = b.maxY;
+      x = Math.max(b.minX, Math.min(b.maxX, x));
+      y = Math.max(b.minY, Math.min(b.maxY, y));
+      panel.style.left = x + "px"; panel.style.top = y + "px";
+      panel.classList.toggle("snap-left", Math.abs(x - b.minX) < 1);
+      panel.classList.toggle("snap-right", Math.abs(x - b.maxX) < 1);
+    });
+    function finish() {
+      if (!drag) return;
+      drag = null; panel.classList.remove("is-dragging-panel", "snap-left", "snap-right");
+      try { localStorage.setItem(KEY, JSON.stringify({ left: parseFloat(panel.style.left) || 0, top: parseFloat(panel.style.top) || 0 })); } catch (e) {}
+    }
+    handle.addEventListener("pointerup", finish);
+    handle.addEventListener("pointercancel", finish);
+  }
+  initPanelDrag("inspector", "inspectorDragHandle");
+  initPanelDrag("layersPanel", "layersDragHandle");
   $("unlockBtn").addEventListener("click",function(){
     let n=0;items.forEach(function(it){if(it.noHit){it.noHit=false;if(it.node){it.node.listening(true);it.node.draggable(true);}n++;}});
     if(n){record();showToast("已解除 "+n+" 个物件的点击锁定");}else{showToast("没有需要解除的锁定");}
