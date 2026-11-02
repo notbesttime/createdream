@@ -16,6 +16,8 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      CF_PAGES_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -28,14 +30,13 @@ jobs:
           echo "files in bundle: $(find dist -type f | wc -l)"
 
       - name: Missing token notice
-        if: ${{ secrets.CLOUDFLARE_API_TOKEN == '' }}
-        run: |
-          echo "::warning::未配置 CLOUDFLARE_API_TOKEN，本次跳过部署。请在 Settings → Secrets and variables → Actions 添加后重新运行。"
+        if: env.CF_PAGES_TOKEN == ''
+        run: echo "::warning::未配置 CLOUDFLARE_API_TOKEN，本次跳过部署。请在 Settings → Secrets and variables → Actions 添加后重新运行。"
 
       - name: Publish to Cloudflare Pages
-        if: ${{ secrets.CLOUDFLARE_API_TOKEN != '' }}
+        if: env.CF_PAGES_TOKEN != ''
         uses: cloudflare/wrangler-action@v3
         with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          apiToken: ${{ env.CF_PAGES_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || '50f84b6494830b21bb71946ecc906309' }}
           command: pages deploy dist --project-name=createdream --branch=main
