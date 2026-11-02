@@ -248,11 +248,16 @@
       sceneFunc: function (ctx, node) {
         const raw = ctx._context || ctx;
         raw.save();
-        const customImage = item.imageElement;
-        const assetImage = customImage ? null : assetImageFor(item.type);
-        if (customImage && (customImage.complete === undefined || (customImage.complete && customImage.naturalWidth))) raw.drawImage(customImage, 0, 0, node.width(), node.height());
-        else if (assetImage) raw.drawImage(assetImage, 0, 0, node.width(), node.height());
-        else if (!isSharedLake(item) && !isSharedPath(item)) ART.draw[item.type](raw, node.width(), node.height(), item);
+        // 单个物件画不出来时不能让整个图层崩掉（否则整张地图都不显示）
+        try {
+          const customImage = item.imageElement;
+          const assetImage = customImage ? null : assetImageFor(item.type);
+          if (customImage && (customImage.complete === undefined || (customImage.complete && customImage.naturalWidth))) raw.drawImage(customImage, 0, 0, node.width(), node.height());
+          else if (assetImage) raw.drawImage(assetImage, 0, 0, node.width(), node.height());
+          else if (!isSharedLake(item) && !isSharedPath(item) && typeof ART.draw[item.type] === "function") ART.draw[item.type](raw, node.width(), node.height(), item);
+        } catch (err) {
+          if (window.console && console.warn) console.warn("item draw failed", item.type, err);
+        }
         raw.restore();
       },
       hitFunc: function (ctx, node) {
@@ -632,10 +637,12 @@
     items.forEach(function (item) {
       if (isSharedLake(item) || isSharedPath(item)) return;
       sceneCtx.save(); sceneCtx.translate(item.node.x(), item.node.y()); sceneCtx.rotate(item.node.rotation() * Math.PI / 180); sceneCtx.translate(-item.w / 2, -item.h / 2);
-      const exportAsset = item.imageElement ? null : assetImageFor(item.type);
-      if (item.imageElement && (item.imageElement.complete === undefined || (item.imageElement.complete && item.imageElement.naturalWidth))) sceneCtx.drawImage(item.imageElement, 0, 0, item.w, item.h);
-      else if (exportAsset) sceneCtx.drawImage(exportAsset, 0, 0, item.w, item.h);
-      else ART.draw[item.type](sceneCtx, item.w, item.h, item);
+      try {
+        const exportAsset = item.imageElement ? null : assetImageFor(item.type);
+        if (item.imageElement && (item.imageElement.complete === undefined || (item.imageElement.complete && item.imageElement.naturalWidth))) sceneCtx.drawImage(item.imageElement, 0, 0, item.w, item.h);
+        else if (exportAsset) sceneCtx.drawImage(exportAsset, 0, 0, item.w, item.h);
+        else if (typeof ART.draw[item.type] === "function") ART.draw[item.type](sceneCtx, item.w, item.h, item);
+      } catch (err) { /* 跳过画不出来的物件 */ }
       sceneCtx.restore();
     });
     // 勾选了「渲染在建筑之上」的道路/桥梁，最后再画一遍
