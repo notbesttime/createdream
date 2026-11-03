@@ -45,6 +45,32 @@
   let drawPoints = [];
   let draftNode = null;
   let suppressStageClick = false;
+  const workspace = stageWrap.parentElement || null;
+  const panelPositioners = [];
+  const touchPointers = new Map();
+  let pinchState = null, touchStartTransforms = [];
+  function isMobileLayout() {
+    return !!(window.matchMedia && window.matchMedia("(max-width: 900px), (pointer: coarse) and (max-height: 500px)").matches);
+  }
+  function setMobilePanel(name) {
+    if (!workspace) return;
+    if (name === "inspector" && !selectedId) return;
+    ["palette", "inspector", "layers"].forEach(function (key) {
+      const open = key === name;
+      workspace.classList.toggle("mobile-" + key + "-open", open);
+      const button = $({ palette: "mobilePaletteBtn", inspector: "mobileInspectorBtn", layers: "mobileLayersBtn" }[key]);
+      if (button) button.setAttribute("aria-expanded", String(open));
+    });
+  }
+  function toggleMobilePanel(name) {
+    if (!workspace) return;
+    setMobilePanel(workspace.classList.contains("mobile-" + name + "-open") ? null : name);
+  }
+  function updateMobileControls() {
+    const button = $("mobileInspectorBtn");
+    if (button) button.disabled = !selectedId;
+    if (!selectedId && workspace && workspace.classList.contains("mobile-inspector-open")) setMobilePanel(null);
+  }
 
   const stage = new Konva.Stage({ container: stageContainer, width: stageWrap.clientWidth, height: stageWrap.clientHeight, draggable: true });
   const mapLayer = new Konva.Layer({ listening: false });
@@ -300,6 +326,7 @@
     shape.on("dblclick dbltap", function () { selectItem(item.id); $("nameInput").focus(); $("nameInput").select(); });
     shape.on("dragmove", updateLabels);
     shape.on("dragend", function () {
+      if (pinchState) return;
       if (snapEnabled) {
         shape.position({ x: Math.round(shape.x() / 10) * 10, y: Math.round(shape.y() / 10) * 10 });
       }
@@ -307,6 +334,7 @@
     });
     shape.on("transform", function () { updateLabels(); });
     shape.on("transformend", function () {
+      if (pinchState) return;
       const sx = shape.scaleX(), sy = shape.scaleY();
       item.w = Math.max(24, Math.round(item.w * sx));
       item.h = Math.max(24, Math.round(item.h * sy));
@@ -395,12 +423,20 @@
       const tab = document.createElement("div");
       tab.className = "canvas-tab" + (m.id === activeId ? " is-active" : "");
       tab.dataset.id = m.id;
-      tab.title = m.name + "（右键重命名）";
+      tab.title = m.name + "（右键或点铅笔重命名）";
+      tab.setAttribute("role", "tab");
+      tab.setAttribute("aria-selected", String(m.id === activeId));
       const name = document.createElement("span");
       name.className = "tab-name"; name.textContent = m.name;
       tab.appendChild(name);
+      const rename = document.createElement("button");
+      rename.className = "tab-rename-button"; rename.type = "button"; rename.textContent = "✎";
+      rename.setAttribute("aria-label", "重命名画布：" + m.name);
+      rename.addEventListener("click", function (evt) { evt.stopPropagation(); renameMap(m.id); });
+      tab.appendChild(rename);
       const close = document.createElement("button");
       close.className = "tab-close"; close.type = "button"; close.textContent = "×"; close.title = "关闭画布";
+      close.setAttribute("aria-label", "关闭画布：" + m.name);
       close.addEventListener("click", function (evt) { evt.stopPropagation(); deleteMap(m.id); });
       tab.appendChild(close);
       tab.addEventListener("click", function () { switchMap(m.id); });
@@ -500,7 +536,7 @@
       const row = document.createElement("div");
       row.className = "layer-row" + (item.id === selectedId ? " is-active" : "");
       row.dataset.id = item.id;
-      row.draggable = true;
+      row.draggable = !isMobileLayout();
       const num = document.createElement("span"); num.className = "layer-num"; num.textContent = String(i);
       const name = document.createElement("span"); name.className = "layer-name"; name.textContent = layerLabel(item);
       row.appendChild(num); row.appendChild(name);
@@ -513,9 +549,18 @@
         const tag2 = document.createElement("span"); tag2.className = "layer-tag"; tag2.textContent = "穿透";
         row.appendChild(tag2);
       }
+      [1, -1].forEach(function (direction) {
+        const action = document.createElement("button");
+        action.className = "layer-nudge"; action.type = "button"; action.textContent = direction > 0 ? "↑" : "↓";
+        action.disabled = direction > 0 ? i === items.length - 1 : i === 0;
+        action.setAttribute("aria-label", (direction > 0 ? "上移图层：" : "下移图层：") + layerLabel(item));
+        action.addEventListener("click", function (evt) { evt.stopPropagation(); selectItem(item.id, true); moveLayer(direction); });
+        row.appendChild(action);
+      });
       row.addEventListener("click", function () {
         if (layerJustDragged) return;
         selectItem(item.id);
+        if (isMobileLayout()) setMobilePanel("inspector");
       });
       row.addEventListener("dragstart", function (evt) {
         layerDragId = item.id; row.classList.add("is-dragging");
@@ -552,7 +597,8 @@
       inspector.hidden = true;
     }
     updateLabels(); objectsLayer.batchDraw();
-    renderLayers();
+    renderLayers(); updateMobileControls();
+    if (item) panelPositioners.forEach(function (position) { position(); });
     if (!quiet) updateCount();
   }
   function updateInspector() {
@@ -584,6 +630,7 @@
     const messages = { lake: "绘制：湖面", road: "绘制：道路", bridge: "绘制：木桥", sketch: "绘制：自绘区域" };
     $("drawPrompt").textContent = messages[type] || "按住并拖动绘制";
     $("drawBanner").hidden = false;
+    if (isMobileLayout()) setMobilePanel(null);
     showToast(messages[type] + "模式已开启");
   }
   function cancelDrawMode() {
@@ -592,7 +639,7 @@
     stageWrap.classList.remove("draw-mode"); $("drawBanner").hidden = true;
     document.querySelectorAll(".asset-card.is-drawing").forEach(function (card) { card.classList.remove("is-drawing"); });
     if (stage) stage.draggable(true);
-    items.forEach(function (item) { if (item.node) item.node.draggable(true); });
+    items.forEach(function (item) { if (item.node) item.node.draggable(!item.noHit); });
     if (objectsLayer) objectsLayer.batchDraw();
   }
   function pointerWorld(evt) {
@@ -636,7 +683,7 @@
     showToast((ART.definitions.find(function (d) { return d.type === type; }) || {}).label + "已绘制");
   }
   function startDrawing(evt) {
-    if (!drawMode || (evt.button !== 0 && evt.pointerType !== "touch")) return;
+    if (pinchState || !drawMode || (evt.button !== 0 && evt.pointerType !== "touch")) return;
     evt.preventDefault(); evt.stopPropagation(); evt.stopImmediatePropagation();
     isDrawing = true; drawPoints = [pointerWorld(evt)];
     if (evt.target && evt.target.setPointerCapture) { try { evt.target.setPointerCapture(evt.pointerId); } catch (e) {} }
@@ -662,6 +709,7 @@
     const p = position || worldPoint(stageContainer.getBoundingClientRect().left + stage.width()/2, stageContainer.getBoundingClientRect().top + stage.height()/2);
     const item = { id: id(), type: type, x: p.x, y: p.y, w: def.w, h: def.h, rotation: 0, name: "", showName: true };
     items.push(item); renderShape(item); makeLabel(item); syncZOrder(); selectItem(item.id); record();
+    if (isMobileLayout()) setMobilePanel(null);
     showToast(def.label + "已添加");
   }
   function deleteSelected() {
@@ -687,9 +735,10 @@
     const moved = items.splice(index, 1)[0]; items.splice(next, 0, moved); syncZOrder(); record();
   }
   function fitView() {
-    const padding = 58;
+    const shortSide = Math.min(stage.width(), stage.height());
+    const padding = isMobileLayout() ? Math.max(12, Math.min(28, shortSide * .06)) : 58;
     const scale = Math.min((stage.width()-padding*2)/board.w, (stage.height()-padding*2)/board.h);
-    const s = Math.max(.12, Math.min(scale, 1.3));
+    const s = Math.max(.06, Math.min(scale, 1.3));
     stage.scale({ x: s, y: s });
     stage.position({ x: (stage.width()-board.w*s)/2, y: (stage.height()-board.h*s)/2 });
     stage.batchDraw(); updateLabels(); updateZoomReadout(); updateTransformerScale();
@@ -697,7 +746,8 @@
   function updateZoomReadout() { $("zoomReadout").textContent = Math.round(stage.scaleX()*100) + "%"; }
   function updateTransformerScale() {
     const s = stage.scaleX();
-    transformer.anchorSize(Math.max(7, Math.min(14, 9 / s)));
+    const coarse = !!(window.matchMedia && window.matchMedia("(pointer: coarse)").matches);
+    transformer.anchorSize(coarse ? 18 : Math.max(7, Math.min(14, 9 / s)));
     transformer.borderStrokeWidth(1.4 / s);
     transformer.anchorStrokeWidth(1.3 / s);
     transformer.rotateAnchorOffset(24 / s);
@@ -886,9 +936,21 @@
     orientation=next;setBoardTexture();syncZOrder();requestAnimationFrame(fitView);record();
     showToast(next==="landscape"?"已切换横版，布局等比适配（切回可还原）":"已切换竖版，布局等比适配（切回可还原）");
   }
+  let previousMobileMode = null;
   function resizeStage() {
-    const w=stageWrap.clientWidth,h=stageWrap.clientHeight;
-    stage.size({width:w,height:h});fitView();
+    const mobile = isMobileLayout();
+    if (previousMobileMode !== mobile) { previousMobileMode = mobile; renderLayers(); }
+    const w = stageWrap.clientWidth, h = stageWrap.clientHeight;
+    if (w < 1 || h < 1) return;
+    const changed = Math.abs(w - stage.width()) > 1 || Math.abs(h - stage.height()) > 1;
+    stage.size({ width: w, height: h });
+    const focused = document.activeElement;
+    const typing = focused && (/INPUT|TEXTAREA|SELECT/.test(focused.tagName) || focused.isContentEditable);
+    if (changed && !typing) fitView();
+    else { stage.batchDraw(); updateLabels(); }
+    panelPositioners.forEach(function (position) { position(); });
+    if (!isMobileLayout()) setMobilePanel(null);
+    updateMobileControls();
   }
   function seedDemo() {
     const defs = [
@@ -912,10 +974,92 @@
     redrawItems();
   }
 
+  // Touch navigation changes only the viewport. Map coordinates and object sizes stay intact.
+  function touchPair() {
+    const pair = Array.from(touchPointers.values()).slice(0, 2);
+    if (pair.length < 2) return null;
+    const rect = stageContainer.getBoundingClientRect();
+    return { x: (pair[0].x + pair[1].x) / 2 - rect.left,
+      y: (pair[0].y + pair[1].y) / 2 - rect.top,
+      distance: Math.max(1, Math.hypot(pair[0].x - pair[1].x, pair[0].y - pair[1].y)) };
+  }
+  function discardDraft() {
+    if (draftNode) { draftNode.destroy(); draftNode = null; }
+    isDrawing = false; drawPoints = [];
+    objectsLayer.batchDraw();
+  }
+  function touchDown(evt) {
+    if (evt.pointerType !== "touch") return;
+    touchPointers.set(evt.pointerId, { x: evt.clientX, y: evt.clientY });
+    if (touchPointers.size === 1 && !pinchState) {
+      touchStartTransforms = items.map(function (item) {
+        return { item: item, x: item.node.x(), y: item.node.y(), scaleX: item.node.scaleX(), scaleY: item.node.scaleY(), rotation: item.node.rotation() };
+      });
+      return;
+    }
+    const pair = touchPair();
+    if (pair && !pinchState) {
+      const scale = stage.scaleX();
+      pinchState = { distance: pair.distance, scale: scale, x: (pair.x - stage.x()) / scale, y: (pair.y - stage.y()) / scale };
+      discardDraft(); suppressStageClick = true;
+      if (stage.isDragging()) stage.stopDrag();
+      const transforming = transformer.isTransforming && transformer.isTransforming();
+      if (transforming) transformer.stopTransform();
+      transformer.listening(false);
+      touchStartTransforms.forEach(function (start) {
+        const node = start.item.node, dragging = node.isDragging();
+        if (dragging) node.stopDrag();
+        if (dragging || transforming) {
+          node.position({ x: start.x, y: start.y }); node.scale({ x: start.scaleX, y: start.scaleY }); node.rotation(start.rotation);
+        }
+      });
+      stage.draggable(false);
+      items.forEach(function (item) { item.node.draggable(false); });
+      updateLabels();
+    }
+    if (pinchState) { evt.preventDefault(); evt.stopImmediatePropagation(); }
+  }
+  function touchMove(evt) {
+    if (evt.pointerType !== "touch" || !touchPointers.has(evt.pointerId)) return;
+    touchPointers.set(evt.pointerId, { x: evt.clientX, y: evt.clientY });
+    if (!pinchState) return;
+    evt.preventDefault(); evt.stopImmediatePropagation();
+    const pair = touchPair();
+    if (!pair) return; // Wait until all fingers lift before starting a new one-finger gesture.
+    const scale = Math.max(.06, Math.min(3.5, pinchState.scale * pair.distance / pinchState.distance));
+    stage.scale({ x: scale, y: scale });
+    stage.position({ x: pair.x - pinchState.x * scale, y: pair.y - pinchState.y * scale });
+    stage.batchDraw(); updateLabels(); updateZoomReadout(); updateTransformerScale();
+  }
+  function touchUp(evt) {
+    if (evt.pointerType !== "touch") return;
+    touchPointers.delete(evt.pointerId);
+    if (!pinchState) return;
+    evt.preventDefault(); evt.stopImmediatePropagation();
+    if (!touchPointers.size) {
+      pinchState = null; touchStartTransforms = [];
+      transformer.listening(true);
+      stage.draggable(!drawMode);
+      items.forEach(function (item) { item.node.draggable(!drawMode && !item.noHit); });
+      window.setTimeout(function () { suppressStageClick = false; }, 150);
+    }
+  }
+  // Konva also listens to native touch events: guard the second event stream.
+  function guardNativeTouch(evt) {
+    if (!drawMode && !pinchState && !suppressStageClick && (!evt.touches || evt.touches.length < 2)) return;
+    evt.preventDefault(); evt.stopImmediatePropagation();
+  }
+  ["touchstart", "touchmove", "touchend", "touchcancel"].forEach(function (type) {
+    stageContainer.addEventListener(type, guardNativeTouch, { capture: true, passive: false });
+  });
+  stageContainer.addEventListener("pointerdown", touchDown, true);
+  stageContainer.addEventListener("pointermove", touchMove, true);
+  stageContainer.addEventListener("pointerup", touchUp, true);
+  stageContainer.addEventListener("pointercancel", touchUp, true);
   stageContainer.addEventListener("pointerdown", startDrawing, true);
   stageContainer.addEventListener("pointermove", continueDrawing, true);
   stageContainer.addEventListener("pointerup", endDrawing, true);
-  stageContainer.addEventListener("pointercancel", endDrawing, true);
+  stageContainer.addEventListener("pointercancel", function () { discardDraft(); }, true);
   $("drawCancelBtn").addEventListener("click", cancelDrawMode);
   $("paletteGroups").addEventListener("dragover", function (evt) { evt.preventDefault(); });
   stageWrap.addEventListener("dragover", function (evt) { evt.preventDefault(); evt.dataTransfer.dropEffect="copy"; });
@@ -928,8 +1072,8 @@
   stage.on("wheel",function(evt){
     evt.evt.preventDefault();const old=stage.scaleX();const pointer=stage.getPointerPosition();const dir=evt.evt.deltaY>0?-1:1;const factor=1.08;const next=Math.max(.18,Math.min(2.5,dir>0?old*factor:old/factor));zoomAt(pointer,next);
   });
-  $("paletteToggle").addEventListener("click",function(){palette.classList.add("is-collapsed");});
-  $("paletteExpand").addEventListener("click",function(){palette.classList.remove("is-collapsed");palette.classList.add("is-open");});
+  $("paletteToggle").addEventListener("click",function(){ if (isMobileLayout()) setMobilePanel(null); else palette.classList.add("is-collapsed"); });
+  $("paletteExpand").addEventListener("click",function(){ if (isMobileLayout()) setMobilePanel("palette"); else { palette.classList.remove("is-collapsed"); palette.classList.add("is-open"); } });
   $("orientationBtn").addEventListener("click",orientationChange);
   $("snapBtn").addEventListener("click",function(){snapEnabled=!snapEnabled;this.classList.toggle("is-active",snapEnabled);this.setAttribute("aria-pressed",String(snapEnabled));record();showToast(snapEnabled?"网格吸附已开启":"网格吸附已关闭");});
   $("fitBtn").addEventListener("click",fitView);
@@ -981,6 +1125,7 @@
         maxX: sb.right - hb.left - panel.offsetWidth, maxY: sb.bottom - hb.top - panel.offsetHeight };
     }
     handle.addEventListener("pointerdown", function (evt) {
+      if (isMobileLayout() || (evt.button !== undefined && evt.button !== 0)) return;
       if (evt.target && evt.target.closest && evt.target.closest("button,input,select,a")) return;
       const host = panel.offsetParent || document.body;
       const pb = panel.getBoundingClientRect(), hb = host.getBoundingClientRect();
@@ -1012,6 +1157,17 @@
       drag = null; panel.classList.remove("is-dragging-panel", "snap-left", "snap-right");
       try { localStorage.setItem(KEY, JSON.stringify({ left: parseFloat(panel.style.left) || 0, top: parseFloat(panel.style.top) || 0 })); } catch (e) {}
     }
+    function reposition() {
+      if (isMobileLayout() || panel.hidden || !panel.offsetWidth) return;
+      const b = box();
+      panel.style.maxHeight = Math.max(80, stageWrap.clientHeight - 16) + "px";
+      if (panel.style.left && panel.style.left !== "auto") {
+        const x = Math.max(b.minX, Math.min(Math.max(b.minX, b.maxX), parseFloat(panel.style.left) || 0));
+        const y = Math.max(b.minY, Math.min(Math.max(b.minY, b.maxY), parseFloat(panel.style.top) || 0));
+        panel.style.left = x + "px"; panel.style.top = y + "px";
+      }
+    }
+    panelPositioners.push(reposition);
     handle.addEventListener("pointerup", finish);
     handle.addEventListener("pointercancel", finish);
   }
@@ -1047,6 +1203,11 @@
     });
   })();
   $("canvasAddBtn").addEventListener("click", addMap);
+  ["palette", "inspector", "layers"].forEach(function (name) {
+    const button = $({ palette: "mobilePaletteBtn", inspector: "mobileInspectorBtn", layers: "mobileLayersBtn" }[name]);
+    if (button) button.addEventListener("click", function () { toggleMobilePanel(name); });
+  });
+  if ($("layersCloseBtn")) $("layersCloseBtn").addEventListener("click", function () { setMobilePanel(null); });
   $("unlockBtn").addEventListener("click",function(){
     let n=0;items.forEach(function(it){if(it.noHit){it.noHit=false;if(it.node){it.node.listening(true);it.node.draggable(true);}n++;}});
     if(n){record();showToast("已解除 "+n+" 个物件的点击锁定");}else{showToast("没有需要解除的锁定");}
@@ -1123,7 +1284,15 @@
     evt.preventDefault();item.node.position({x:item.node.x()+dx,y:item.node.y()+dy});item.x=item.node.x();item.y=item.node.y();updateLabels();
   });
   window.addEventListener("keyup",function(evt){if(["ArrowLeft","ArrowRight","ArrowUp","ArrowDown"].includes(evt.key)){const item=items.find(function(x){return x.id===selectedId;});if(item)record();}});
-  window.addEventListener("resize",resizeStage);
+  let viewportFrame = 0;
+  function scheduleViewportResize() {
+    if (viewportFrame) return;
+    viewportFrame = requestAnimationFrame(function () { viewportFrame = 0; resizeStage(); });
+  }
+  window.addEventListener("resize", scheduleViewportResize);
+  if (window.ResizeObserver) new window.ResizeObserver(scheduleViewportResize).observe(stageWrap);
+  if (window.visualViewport) window.visualViewport.addEventListener("resize", scheduleViewportResize);
+  if (window.screen && window.screen.orientation) window.screen.orientation.addEventListener("change", scheduleViewportResize);
 
   buildPalette();
   renderLogo();

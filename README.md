@@ -34,6 +34,13 @@
 5. 地图左上角的标题（默认「南湖创梦空间」）**直接点击就能改**，回车确认、Esc 取消。
 6. 右上「导出图片」出 PNG；「布局文件」导出 JSON 存档。
 
+### 手机使用（横屏 / 竖屏）
+
+- 竖屏从底部「素材 / 详情 / 图层」打开抽屉，横屏从同一入口打开右侧浮层；一次只展开一块，减少对地图的遮挡。先点选物件再点「详情」，或在图层列表点名称进入详情。
+- 单指拖动空白处平移、拖动物件调整位置；双指缩放与平移视图。绘制模式下单指画轨迹，加入第二根手指会取消当前未完成笔画并切换为视图缩放。
+- 手机横竖旋转只适应视口，不改动物件尺寸；需要改变地图的横竖版式时，仍使用顶部的「横屏画布 / 竖屏画布」按钮。
+- 画布页签上的铅笔按钮用于重命名，× 用于关闭；图层行的 ↑ / ↓ 用于调整顺序，无需鼠标右键或拖排。
+
 ## 3. 代码结构 / 想改哪里看这里
 
 ```
@@ -120,6 +127,7 @@ node tests/render-regression.cjs     /path/to/node_modules/canvas
 node tests/path-regression.cjs       /path/to/node_modules/canvas
 node tests/asset-regression.cjs      /path/to/node_modules/canvas
 node tests/app-regression.cjs        /path/to/node_modules/canvas
+node tests/mobile-regression.cjs     /path/to/node_modules/canvas
 node tests/resilience-regression.cjs /path/to/node_modules/canvas
 node tests/default-export.cjs        /path/to/node_modules/canvas
 ```

@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#edf6f7">
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
   <title>叠叠狐狸 · 湖南理工大学南湖创梦空间地图编辑器</title>
@@ -90,6 +90,12 @@
         <div class="canvas-status"><span id="itemCount">0 个物件</span><span class="status-sep">·</span><span id="saveState">已自动保存</span></div>
       </section>
 
+      <nav class="mobile-tools" aria-label="手机编辑工具">
+        <button id="mobilePaletteBtn" type="button" aria-controls="palette" aria-expanded="false">素材</button>
+        <button id="mobileInspectorBtn" type="button" aria-controls="inspector" aria-expanded="false" disabled>详情</button>
+        <button id="mobileLayersBtn" type="button" aria-controls="layersPanel" aria-expanded="false">图层</button>
+      </nav>
+
       <aside class="inspector float-panel" id="inspector" hidden>
         <div class="inspector-head" id="inspectorDragHandle">
           <div><span class="inspector-kicker">当前物件</span><h2 id="inspectorType">建筑</h2></div>
@@ -125,6 +131,7 @@
         <div class="layers-head" id="layersDragHandle">
           <span class="layers-title">图层</span>
           <span class="layers-order">0 最底</span>
+          <button id="layersCloseBtn" class="close-btn" type="button" title="收起图层" aria-label="收起图层">×</button>
         </div>
         <div class="layers-list" id="layersList"></div>
         <div class="layers-tip">点名称可选中；按住上下拖动可调层级</div>
