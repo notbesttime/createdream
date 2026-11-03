@@ -818,6 +818,19 @@
       ctx.shadowColor = "rgba(56,74,66,.22)"; ctx.shadowBlur = 12; ctx.shadowOffsetY = 4;
       ctx.drawImage(logoImage, 24, 20, logoSize, logoSize);
       ctx.restore();
+      // 校徽右侧的校名/园区名
+      ctx.save();
+      ctx.textAlign = "left";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = "#4d3568";
+      const nameSize = Math.round(logoSize * 0.30);
+      ctx.font = "700 " + nameSize + "px " + FONT;
+      const label = "南湖创梦空间";
+      const lx = 24 + logoSize + Math.round(logoSize * 0.16);
+      const ly = 20 + logoSize / 2;
+      ctx.shadowColor = "rgba(255,255,255,.85)"; ctx.shadowBlur = 6;
+      ctx.fillText(label, lx, ly);
+      ctx.restore();
     }
     const compassSize = Math.round(Math.min(board.w, board.h) * .128);
     ART.drawCompass(ctx, 30, board.h - compassSize - 28, compassSize);
