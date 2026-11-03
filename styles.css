@@ -104,6 +104,9 @@ button { color: inherit; }
 .zoom-btn { width: 24px; height: 23px; border: 0; border-radius: 4px; background: transparent; color: #4e7162; font-size: 18px; line-height: 1; cursor: pointer; }
 .zoom-btn:hover { background: #edf5ef; }
 #zoomReadout { min-width: 37px; text-align: center; font-variant-numeric: tabular-nums; }
+.map-title { position: absolute; left: 0; top: 0; z-index: 3; padding: 2px 5px; border-radius: 4px; color: #4d3568; font-weight: 700; font-size: 20px; line-height: 1.15; white-space: nowrap; cursor: text; text-shadow: 0 1px 2px rgba(255,255,255,.8); }
+.map-title:hover { background: rgba(255,255,255,.6); outline: 1px dashed #bda9d6; }
+.map-title[contenteditable="true"] { background: #fff; outline: 2px solid #b09ad0; cursor: text; text-shadow: none; }
 .labels-overlay { position: absolute; inset: 0; z-index: 2; pointer-events: none; overflow: hidden; }
 .map-label { position: absolute; transform: translate(-50%, -100%); max-width: 180px; padding: 4px 8px 5px; border: 1px solid rgba(126,123,105,.58); border-radius: 3px; background: rgba(247,245,234,.96); box-shadow: 0 2px 5px rgba(55,62,51,.12); color: #4b5146; font-family: Georgia, \"Microsoft YaHei\", serif; font-size: 12px; line-height: 1.1; font-weight: 600; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; cursor: pointer; pointer-events: auto; user-select: none; }
 .map-label:after { content: ""; position: absolute; left: 50%; bottom: -5px; transform: translateX(-50%); width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 6px solid rgba(126,123,105,.7); }

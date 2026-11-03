@@ -32,6 +32,7 @@
   let board = SIZE[orientation];
   let snapEnabled = true;
   let logoData = DEFAULT_LOGO;
+  let mapTitle = "南湖创梦空间";
   let selectedId = null;
   let nextId = 1;
   let items = [];
@@ -162,7 +163,7 @@
     return "item-" + (Date.now().toString(36)) + "-" + (nextId++).toString(36);
   }
   function copyData() {
-    return JSON.stringify({ orientation: orientation, snapEnabled: snapEnabled, logoData: logoData, items: items.map(function (item) {
+    return JSON.stringify({ orientation: orientation, snapEnabled: snapEnabled, logoData: logoData, title: mapTitle, items: items.map(function (item) {
       return { id: item.id, type: item.type, x: item.x, y: item.y, w: item.w, h: item.h, rotation: item.rotation, name: item.name, showName: item.showName, pathPoints: item.pathPoints || null, pathBaseW: item.pathBaseW || null, pathBaseH: item.pathBaseH || null, pathThickness: item.pathThickness || null, tint: item.tint || null, noHit: !!item.noHit, overItems: !!item.overItems, imageData: item.imageData || "" };
     }) });
   }
@@ -170,7 +171,7 @@
     return maps.find(function (m) { return m.id === activeId; });
   }
   function emptyLayout() {
-    return { orientation: "portrait", snapEnabled: snapEnabled, logoData: DEFAULT_LOGO, items: [] };
+    return { orientation: "portrait", snapEnabled: snapEnabled, logoData: DEFAULT_LOGO, title: "南湖创梦空间", items: [] };
   }
   function saveCurrentMap() {
     const m = currentMap();
@@ -346,7 +347,23 @@
     item.labelEl.style.left = (stage.x() + p.x * s) + "px";
     item.labelEl.style.top = (stage.y() + p.y * s) + "px";
   }
-  function updateLabels() { items.forEach(updateOneLabel); }
+  function updateLabels() { items.forEach(updateOneLabel); updateTitlePos(); }
+
+  function updateTitlePos() {
+    const el = $("mapTitle");
+    if (!el) return;
+    const visible = !!(mapTitle && mapTitle.trim());
+    el.style.display = visible ? "block" : "none";
+    if (!visible) return;
+    if (el.getAttribute && el.getAttribute("contenteditable") === "true") return;
+    const s = stage.scaleX();
+    const size = Math.max(11, Math.min(72, Math.min(board.w, board.h) * 0.045 * s));
+    el.style.fontSize = size + "px";
+    el.style.left = (stage.x() + 22 * s) + "px";
+    el.style.top = (stage.y() + 16 * s) + "px";
+    el.textContent = mapTitle;
+  }
+
   function redrawItems() {
     objectsLayer.removeChildren();
     objectsLayer.add(waterSurface); objectsLayer.add(roadSurface); objectsLayer.add(bridgeSurface);
@@ -697,6 +714,7 @@
     board = SIZE[orientation];
     snapEnabled = data.snapEnabled !== false;
     logoData = typeof data.logoData === "string" && data.logoData ? data.logoData : DEFAULT_LOGO;
+    mapTitle = typeof data.title === "string" ? data.title : "南湖创梦空间";
     items = Array.isArray(data.items) ? data.items.map(function (x) {
       const def = ART.definitions.find(function (d) { return d.type === x.type; });
       if (!def) return null;
@@ -825,7 +843,7 @@
       ctx.fillStyle = "#4d3568";
       const nameSize = Math.round(logoSize * 0.30);
       ctx.font = "700 " + nameSize + "px " + FONT;
-      const label = "南湖创梦空间";
+      const label = mapTitle;
       const lx = 24 + logoSize + Math.round(logoSize * 0.16);
       const ly = 20 + logoSize / 2;
       ctx.shadowColor = "rgba(255,255,255,.85)"; ctx.shadowBlur = 6;
@@ -999,6 +1017,35 @@
   }
   initPanelDrag("inspector", "inspectorDragHandle");
   initPanelDrag("layersPanel", "layersDragHandle");
+  (function initTitleEditor() {
+    const el = $("mapTitle");
+    if (!el) return;
+    el.addEventListener("pointerdown", function (evt) { evt.stopPropagation(); });
+    el.addEventListener("click", function (evt) {
+      evt.stopPropagation();
+      if (el.getAttribute("contenteditable") === "true") return;
+      el.textContent = mapTitle;
+      el.setAttribute("contenteditable", "true");
+      el.focus();
+      try {
+        const range = document.createRange(); range.selectNodeContents(el);
+        const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+      } catch (e) {}
+    });
+    el.addEventListener("keydown", function (evt) {
+      evt.stopPropagation();
+      if (evt.key === "Enter") { evt.preventDefault(); el.blur(); }
+      else if (evt.key === "Escape") { evt.preventDefault(); el.textContent = mapTitle; el.blur(); }
+    });
+    el.addEventListener("blur", function () {
+      el.setAttribute("contenteditable", "false");
+      const next = (el.textContent || "").replace(/\s+/g, " ").trim().slice(0, 24);
+      mapTitle = next;
+      el.textContent = mapTitle;
+      updateTitlePos();
+      record();
+    });
+  })();
   $("canvasAddBtn").addEventListener("click", addMap);
   $("unlockBtn").addEventListener("click",function(){
     let n=0;items.forEach(function(it){if(it.noHit){it.noHit=false;if(it.node){it.node.listening(true);it.node.draggable(true);}n++;}});
