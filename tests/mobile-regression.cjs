@@ -122,8 +122,12 @@ async function test(name, run) { timers.splice(0).forEach(fn => fn()); await run
     await touch("pointerup", 1, 130, 220); await touch("pointerup", 2, 230, 220);
     const node = layer.children.find(x => x.getAttr("itemId") === road.id); assert.equal(node.draggable(), false); assert.equal(node.listening(), false);
   });
-  await test("new mobile canvas stays blank and the original map survives switching", async () => {
-    const before = await state(); await el("canvasAddBtn").emit("click"); assert.equal((await state()).items.length, 0);
+  await test("new mobile canvas inherits the current layout but stays independent", async () => {
+    const before = await state();
+    await el("canvasAddBtn").emit("click");
+    assert.equal((await state()).items.length, before.items.length, "新画布沿用当前布局");
+    await card("tree").emit("click");
+    assert.equal((await state()).items.length, before.items.length + 1, "只修改新画布");
     await el("canvasTabsList").children[0].emit("click");
     const normalized = layout => ({ ...layout, items: layout.items.map(item => {
       const copy = { ...item }; if (!copy.pathPoints) { delete copy.pathBaseW; delete copy.pathBaseH; } return copy;

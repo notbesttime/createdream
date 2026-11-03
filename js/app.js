@@ -457,13 +457,19 @@
   }
   function addMap() {
     saveCurrentMap();
+    // 新画布以当前画布为模板深拷贝，便于在既有布局上改出新版本
+    let template;
+    try {
+      const source = currentMap();
+      template = source && source.data ? JSON.parse(JSON.stringify(source.data)) : JSON.parse(copyData());
+    } catch (e) { template = emptyLayout(); }
     const m = { id: "map-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 5),
-      name: "画布 " + (maps.length + 1), data: emptyLayout() };
+      name: "画布 " + (maps.length + 1), data: template };
     maps.push(m); activeId = m.id;
     restoreData(m.data);
     history = [copyData()]; redoHistory = []; updateHistoryButtons();
     renderTabs(); persist();
-    showToast("已新建画布：" + m.name);
+    showToast("已新建画布：" + m.name + "（沿用当前布局）");
   }
   function deleteMap(id) {
     if (maps.length <= 1) { showToast("至少保留一个画布"); return; }

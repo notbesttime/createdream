@@ -111,12 +111,15 @@ let passed=0;function test(name,run){run();passed++;console.log("PASS "+name);}c
     assert.ok(Math.abs(now-portraitWidth)<=0.6,"width "+now+" vs "+portraitWidth);
   });
   const beforeCount=data.items.length;
-  test("新建画布是独立的空白地图，切回原画布内容完整恢复",()=>{
+  test("新建画布沿用当前布局，且与原画布互不影响",()=>{
     el("canvasAddBtn").emit("click");
     assert.equal(el("canvasTabsList").children.length,2,"应有 2 个画布页签");
-    assert.equal(el("itemCount").textContent,"0 个物件","新画布应该是空的");
+    assert.equal(el("itemCount").textContent,beforeCount+" 个物件","新画布应复制当前布局");
+    el("layersList").children[0].emit("click");
+    el("deleteBtn").emit("click");
+    assert.equal(el("itemCount").textContent,(beforeCount-1)+" 个物件","新画布上删掉一个物件");
     el("canvasTabsList").children[0].emit("click");
-    assert.equal(el("itemCount").textContent,beforeCount+" 个物件","切回后原画布物件恢复");
+    assert.equal(el("itemCount").textContent,beforeCount+" 个物件","原画布不受影响");
   });
   test("最后一个画布不允许删除",()=>{
     el("canvasTabsList").children[1].emit("click");   // 回到第二个（空）画布
