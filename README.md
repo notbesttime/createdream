@@ -126,14 +126,7 @@ node tests/default-export.cjs        /path/to/node_modules/canvas
 
 产物写到 `tests/artifacts/`（已 gitignore）；基准图在 `tests/fixtures/`。
 
-## 6. 部署
-
-线上用 **Cloudflare Pages**，项目名 `createdream`。
-
-- 自动部署：推送到 `main` 由 `.github/workflows/deploy-pages.yml` 构建 `dist/` 并发布；需在仓库 Secrets 配 `CLOUDFLARE_API_TOKEN`（Account · Cloudflare Pages · Edit）。
-- 手动发布：`npx wrangler@3 pages deploy dist --project-name createdream --branch main`（需要本机 `wrangler login`）。
-
-## 7. 许可与素材
+## 6. 许可与素材
 
 - 代码可自由学习、修改、二次分发。
 - `assets/` 下的建筑/树木位图与校徽为湖南理工大学相关素材，仅供校园地图用途；云海与草地为程序化生成。
