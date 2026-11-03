@@ -1336,4 +1336,21 @@
   updateHistoryButtons();
   renderTabs();
   persist();
+  // ?layout=<url> 会把指定布局作为一个新画布载入（不会覆盖已有画布）
+  (function loadLayoutFromUrl() {
+    try {
+      const src = new URLSearchParams(window.location.search).get("layout");
+      if (!src) return;
+      fetch(src).then(function (r) { return r.json(); }).then(function (data) {
+        saveCurrentMap();
+        const m = { id: "map-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 5),
+          name: "平面图布局", data: data };
+        maps.push(m); activeId = m.id;
+        restoreData(data);
+        history = [copyData()]; redoHistory = []; updateHistoryButtons();
+        renderTabs(); persist();
+        showToast("已载入布局：" + src);
+      }).catch(function () { showToast("布局载入失败：" + src); });
+    } catch (e) {}
+  })();
 })();
