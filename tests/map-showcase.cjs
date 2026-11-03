@@ -5,6 +5,7 @@ const {createCanvas,Image}=require(process.env.CANVAS_MODULE||process.argv[2]||"
 const root=path.join(__dirname,".."),all=[],elements=new Map(),frames=[],storage=new Map(),downloads=[];
 class Element{
   constructor(tag="div"){this.tagName=tag.toUpperCase();this.style={};this.dataset={};this.children=[];this.listeners={};this.clientWidth=1200;this.clientHeight=850;this.value="";this.files=[];this.hidden=false;this.classes=new Set();all.push(this);this.classList={add:(...x)=>x.forEach(y=>this.classes.add(y)),remove:(...x)=>x.forEach(y=>this.classes.delete(y)),toggle:(x,v)=>{const on=v===undefined?!this.classes.has(x):v;on?this.classes.add(x):this.classes.delete(x);return on;}};}
+  set innerHTML(v){ this._html = v; this.children.length = 0; } get innerHTML(){ return this._html || ""; }
   set className(v){this.classes=new Set(v.split(" "));} get className(){return [...this.classes].join(" ");}
   appendChild(x){this.children.push(x);x.parentElement=this;return x;} remove(){}
   addEventListener(k,f){(this.listeners[k]||=[]).push(f);} removeEventListener(){} setAttribute(k,v){this[k]=v;}
@@ -27,12 +28,13 @@ vm.runInContext(fs.readFileSync(path.join(root,"js/app.js"),"utf8"),sandbox,{fil
   for(const key of Object.keys(files))await loadAsset(key);
   const stage=sandbox.Konva.stages[0];
   const el=id=>document.getElementById(id);
+const curData=()=>{const raw=storage.get("ddhx-campus-maps-v2");if(!raw)return {items:[]};const p=JSON.parse(raw);const m=p.maps.find(function(x){return x.id===p.activeId;});return (m&&m.data)||{items:[]};};
   const add=async(type,x,y,w,h,name)=>{const card={dataset:{type},classes:new Set(["asset-card"]),addEventListener(){}};
-    const before=JSON.parse(storage.get("ddhx-campus-map-v1")||"{}");
+    const before=curData();
     el("nameInput").value="";el("widthInput").value="";el("heightInput").value="";el("rotationInput").value="";
     return {type,x,y,w,h,name,before};};
   // Add through the palette path so the app builds the nodes itself.
-  const state=async()=>{await el("saveBtn").emit("click");return JSON.parse(storage.get("ddhx-campus-map-v1"));};
+  const state=async()=>{await el("saveBtn").emit("click");return curData();};
   let data=await state();
   const seed=data.items;
   // Replace demo placements with a clean layout using the new sprites.
@@ -43,7 +45,7 @@ vm.runInContext(fs.readFileSync(path.join(root,"js/app.js"),"utf8"),sandbox,{fil
     const btn=all.find(x=>x.classes.has("asset-card")&&x.dataset.type===types[i]);
     if(btn){await btn.emit("click");}
     await el("saveBtn").emit("click");
-    const saved=JSON.parse(storage.get("ddhx-campus-map-v1"));
+    const saved=curData();
     const item=saved.items[saved.items.length-1];
     const node=stage.children[1].children.find(n=>n.getAttr("itemId")===item.id);
     if(node){node.position({x:pos[i][0],y:pos[i][1]});node.width(pos[i][2]);node.height(pos[i][3]);node.offset({x:pos[i][2]/2,y:pos[i][3]/2});node.fire("dragend");}
@@ -58,6 +60,6 @@ vm.runInContext(fs.readFileSync(path.join(root,"js/app.js"),"utf8"),sandbox,{fil
   const wide=downloads.find(d=>d.href&&d.href.startsWith("data:image/png"));
   fs.writeFileSync(path.join(__dirname,"artifacts","map-showcase-landscape.png"),Buffer.from(wide.href.split(",")[1],"base64"));
   await el("saveBtn").emit("click");
-  const finalTypes=JSON.parse(storage.get("ddhx-campus-map-v1")).items.map(function(i){return i.type;});
+  const finalTypes=curData().items.map(function(i){return i.type;});
   console.log(JSON.stringify({ok:true,file:path.join(__dirname,"artifacts","map-showcase.png")}));
 })().catch(e=>{console.error(e.stack);process.exitCode=1;});

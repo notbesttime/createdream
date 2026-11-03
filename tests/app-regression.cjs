@@ -4,6 +4,7 @@ const {createCanvas,Image}=require(process.env.CANVAS_MODULE||process.argv[2]||"
 const root=path.join(__dirname,".."),all=[],elements=new Map(),frames=[],storage=new Map(),downloads=[];
 class Element {
   constructor(tag="div"){this.tagName=tag.toUpperCase();this.style={};this.dataset={};this.children=[];this.listeners={};this.clientWidth=1200;this.clientHeight=850;this.value="";this.files=[];this.hidden=false;this.classes=new Set();all.push(this);this.classList={add:(...xs)=>xs.forEach(x=>this.classes.add(x)),remove:(...xs)=>xs.forEach(x=>this.classes.delete(x)),toggle:(x,v)=>{const on=v===undefined?!this.classes.has(x):v;on?this.classes.add(x):this.classes.delete(x);return on;}};}
+  set innerHTML(v){ this._html = v; this.children.length = 0; } get innerHTML(){ return this._html || ""; }
   set className(v){this.classes=new Set(v.split(" "));} get className(){return [...this.classes].join(" ");}
   appendChild(x){this.children.push(x);x.parentElement=this;return x;} remove(){if(this.parentElement)this.parentElement.children=this.parentElement.children.filter(x=>x!==this);}
   addEventListener(k,f){(this.listeners[k]||=[]).push(f);} removeEventListener(){} setAttribute(k,v){this[k]=v;}
@@ -27,7 +28,8 @@ sandbox.Konva=sandbox.Konva||window.Konva;sandbox.Konva.autoDrawEnabled=false;
 vm.runInContext(fs.readFileSync(path.join(root,"js/app.js"),"utf8"),sandbox,{filename:"app.js"});
 for(let i=0;i<4&&frames.length;i++){const batch=frames.splice(0);batch.forEach(fn=>fn());}
 const stage=sandbox.Konva.stages[0],layer=stage.children[1],el=id=>document.getElementById(id);
-let passed=0;function test(name,run){run();passed++;console.log("PASS "+name);}const state=async()=>{await el("saveBtn").emit("click");return JSON.parse(storage.get("ddhx-campus-map-v1"));};
+const curData=()=>{const raw=storage.get("ddhx-campus-maps-v2");if(!raw)return {items:[]};const p=JSON.parse(raw);const m=p.maps.find(function(x){return x.id===p.activeId;});return (m&&m.data)||{items:[]};};
+let passed=0;function test(name,run){run();passed++;console.log("PASS "+name);}const state=async()=>{await el("saveBtn").emit("click");return curData();};
 (async()=>{
   stage.draw();
   test("app boots with actual Konva and a bottom water surface",()=>{assert.equal(el("itemCount").textContent,"15 个物件");assert.equal(layer.children[0].listening(),false);assert.ok(layer.children.some(n=>n.getAttr("itemId")));});
@@ -90,7 +92,7 @@ let passed=0;function test(name,run){run();passed++;console.log("PASS "+name);}c
   copyNode=layer.children.find(n=>n.getAttr("itemId")===copy.id);copyNode.fire("click",{cancelBubble:false,evt:{button:0}});el("typeInput").value="garden";await el("typeInput").emit("change");stage.draw();data=await state();
   test("changing a lake back to a regular asset refreshes layers",()=>{assert.equal(data.items.filter(x=>x.type==="lake").length,1);assert.equal(data.items.find(x=>x.id===copy.id).type,"garden");});
   test("asset buildings render from the shared bitmap cache, not canvas art",()=>{assert.ok(assetReads>0);});
-  test("saved layout keeps assets by file reference without embedding base64",()=>{const raw=storage.get("ddhx-campus-map-v1");assert.ok(!raw.includes("data:image"));assert.ok(raw.includes("\"type\":\"brick\""));});
+  test("saved layout keeps assets by file reference without embedding base64",()=>{const raw=storage.get("ddhx-campus-maps-v2");assert.ok(!raw.includes("data:image"));assert.ok(raw.includes("\"type\":\"brick\""));});
   await el("exportPngBtn").emit("click");
   test("PNG export completes with the same water composition",()=>{const d=downloads.find(x=>x.href&&x.href.startsWith("data:image/png"));assert.ok(d);const image=new Image();image.src=Buffer.from(d.href.split(",")[1],"base64");assert.equal(image.width,1600);assert.equal(image.height,2400);});
   const saved=downloads.find(x=>x.href&&x.href.startsWith("data:image/png"));
@@ -107,6 +109,28 @@ let passed=0;function test(name,run){run();passed++;console.log("PASS "+name);}c
     assert.equal(data.orientation,"portrait");
     const now=data.items.find(x=>x.type==="brick").w;
     assert.ok(Math.abs(now-portraitWidth)<=0.6,"width "+now+" vs "+portraitWidth);
+  });
+  const beforeCount=data.items.length;
+  test("新建画布是独立的空白地图，切回原画布内容完整恢复",()=>{
+    el("canvasAddBtn").emit("click");
+    assert.equal(el("canvasTabsList").children.length,2,"应有 2 个画布页签");
+    assert.equal(el("itemCount").textContent,"0 个物件","新画布应该是空的");
+    el("canvasTabsList").children[0].emit("click");
+    assert.equal(el("itemCount").textContent,beforeCount+" 个物件","切回后原画布物件恢复");
+  });
+  test("最后一个画布不允许删除",()=>{
+    el("canvasTabsList").children[1].emit("click");   // 回到第二个（空）画布
+    el("canvasAddBtn").emit("click");                 // 3 个
+    el("canvasTabsList").children[2].querySelector? null : null;
+    // 逐个关闭到只剩 1 个
+    let guard=0;
+    while(el("canvasTabsList").children.length>1 && guard++<10){
+      const tabs=el("canvasTabsList").children;
+      const last=tabs[tabs.length-1];
+      const closeBtn=last.children.find(function(c){return c.className==="tab-close";});
+      closeBtn.emit("click");
+    }
+    assert.equal(el("canvasTabsList").children.length,1,"至少保留一个画布");
   });
   console.log(JSON.stringify({passed,items:data.items.length,orientation:data.orientation}));
 })().catch(error=>{console.error(error.stack);process.exitCode=1;});

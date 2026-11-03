@@ -3,6 +3,9 @@
 
   const ART = window.MapArt;
   const STORE_KEY = "ddhx-campus-map-v1";
+  const MAPS_KEY = "ddhx-campus-maps-v2";
+  let maps = [];
+  let activeId = null;
   const SIZE = { portrait: { w: 1000, h: 1500 }, landscape: { w: 1500, h: 1000 } };
   const FONT = "Microsoft YaHei, PingFang SC, sans-serif";
   const GRASS_SRC = "assets/grass.webp";
@@ -163,9 +166,20 @@
       return { id: item.id, type: item.type, x: item.x, y: item.y, w: item.w, h: item.h, rotation: item.rotation, name: item.name, showName: item.showName, pathPoints: item.pathPoints || null, pathBaseW: item.pathBaseW || null, pathBaseH: item.pathBaseH || null, pathThickness: item.pathThickness || null, tint: item.tint || null, noHit: !!item.noHit, overItems: !!item.overItems, imageData: item.imageData || "" };
     }) });
   }
+  function currentMap() {
+    return maps.find(function (m) { return m.id === activeId; });
+  }
+  function emptyLayout() {
+    return { orientation: "portrait", snapEnabled: snapEnabled, logoData: DEFAULT_LOGO, items: [] };
+  }
+  function saveCurrentMap() {
+    const m = currentMap();
+    if (m) { try { m.data = JSON.parse(copyData()); } catch (e) {} }
+  }
   function persist() {
     try {
-      localStorage.setItem(STORE_KEY, copyData());
+      saveCurrentMap();
+      localStorage.setItem(MAPS_KEY, JSON.stringify({ maps: maps, activeId: activeId }));
       $("saveState").textContent = "已自动保存";
     } catch (err) {
       $("saveState").textContent = "本地空间不足";
@@ -355,6 +369,76 @@
   }
   function updateCount() { $("itemCount").textContent = items.length + " 个物件"; }
 
+  // ---------------- 多画布 ----------------
+  function renderTabs() {
+    const list = $("canvasTabsList");
+    if (!list) return;
+    list.innerHTML = "";
+    maps.forEach(function (m) {
+      const tab = document.createElement("div");
+      tab.className = "canvas-tab" + (m.id === activeId ? " is-active" : "");
+      tab.dataset.id = m.id;
+      tab.title = m.name + "（右键重命名）";
+      const name = document.createElement("span");
+      name.className = "tab-name"; name.textContent = m.name;
+      tab.appendChild(name);
+      const close = document.createElement("button");
+      close.className = "tab-close"; close.type = "button"; close.textContent = "×"; close.title = "关闭画布";
+      close.addEventListener("click", function (evt) { evt.stopPropagation(); deleteMap(m.id); });
+      tab.appendChild(close);
+      tab.addEventListener("click", function () { switchMap(m.id); });
+      tab.addEventListener("contextmenu", function (evt) { evt.preventDefault(); renameMap(m.id); });
+      list.appendChild(tab);
+    });
+  }
+  function switchMap(id) {
+    if (!id || id === activeId) return;
+    saveCurrentMap();
+    const m = maps.find(function (x) { return x.id === id; });
+    if (!m) return;
+    activeId = id;
+    try { restoreData(m.data || emptyLayout()); }
+    catch (e) { seedDemo(); setBoardTexture(); requestAnimationFrame(fitView); }
+    history = [copyData()]; redoHistory = []; updateHistoryButtons();
+    renderTabs(); scheduleSave();
+  }
+  function addMap() {
+    saveCurrentMap();
+    const m = { id: "map-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 5),
+      name: "画布 " + (maps.length + 1), data: emptyLayout() };
+    maps.push(m); activeId = m.id;
+    restoreData(m.data);
+    history = [copyData()]; redoHistory = []; updateHistoryButtons();
+    renderTabs(); persist();
+    showToast("已新建画布：" + m.name);
+  }
+  function deleteMap(id) {
+    if (maps.length <= 1) { showToast("至少保留一个画布"); return; }
+    const i = maps.findIndex(function (m) { return m.id === id; });
+    if (i < 0) return;
+    if (id === activeId) {
+      saveCurrentMap();
+      const next = maps[i + 1] || maps[i - 1];
+      maps.splice(i, 1);
+      activeId = next.id;
+      try { restoreData(next.data || emptyLayout()); } catch (e) {}
+      history = [copyData()]; redoHistory = []; updateHistoryButtons();
+    } else {
+      maps.splice(i, 1);
+    }
+    renderTabs(); persist();
+    showToast("画布已关闭");
+  }
+  function renameMap(id) {
+    const m = maps.find(function (x) { return x.id === id; });
+    if (!m) return;
+    const name = window.prompt("画布名称", m.name);
+    if (name === null) return;
+    const trimmed = String(name).trim().slice(0, 20);
+    if (!trimmed) return;
+    m.name = trimmed;
+    renderTabs(); persist();
+  }
   // ---------------- 图层面板 ----------------
   let layerDragId = null, layerJustDragged = false;
   function layerLabel(item) {
@@ -902,6 +986,7 @@
   }
   initPanelDrag("inspector", "inspectorDragHandle");
   initPanelDrag("layersPanel", "layersDragHandle");
+  $("canvasAddBtn").addEventListener("click", addMap);
   $("unlockBtn").addEventListener("click",function(){
     let n=0;items.forEach(function(it){if(it.noHit){it.noHit=false;if(it.node){it.node.listening(true);it.node.draggable(true);}n++;}});
     if(n){record();showToast("已解除 "+n+" 个物件的点击锁定");}else{showToast("没有需要解除的锁定");}
@@ -983,14 +1068,37 @@
   buildPalette();
   renderLogo();
   window.MapAssets.loadAll(ART.definitions.map(function (d) { return d.src; }).concat([GRASS_SRC, CLOUD_SEA_SRC])).then(function () { setBoardTexture(); objectsLayer.batchDraw(); });
-  const stored=localStorage.getItem(STORE_KEY);
-  if(stored){
-    try{restoreData(JSON.parse(stored));history=[copyData()];}
-    catch(e){seedDemo();setBoardTexture();requestAnimationFrame(fitView);history=[copyData()];}
-  } else if(window.DEFAULT_LAYOUT){
-    // 首次打开且本地没有存档时，用打包进站点的基准布局
-    try{restoreData(window.DEFAULT_LAYOUT);history=[copyData()];}
-    catch(e){seedDemo();setBoardTexture();requestAnimationFrame(fitView);history=[copyData()];}
-  } else {seedDemo();setBoardTexture();requestAnimationFrame(fitView);history=[copyData()];}
+  (function bootMaps(){
+    try {
+      const savedMaps = localStorage.getItem(MAPS_KEY);
+      if (savedMaps) {
+        const parsed = JSON.parse(savedMaps);
+        if (parsed && Array.isArray(parsed.maps) && parsed.maps.length) {
+          maps = parsed.maps;
+          activeId = parsed.maps.some(function (m) { return m.id === parsed.activeId; }) ? parsed.activeId : parsed.maps[0].id;
+          const m = currentMap();
+          restoreData(m.data || emptyLayout());
+          return;
+        }
+      }
+      // 迁移旧版单布局
+      let data = null;
+      const old = localStorage.getItem(STORE_KEY);
+      if (old) { try { data = JSON.parse(old); } catch (e) {} }
+      if (!data && window.DEFAULT_LAYOUT) data = window.DEFAULT_LAYOUT;
+      maps = [{ id: "map-main", name: "主画布", data: data || null }];
+      activeId = "map-main";
+      if (data) { restoreData(data); }
+      else { seedDemo(); setBoardTexture(); requestAnimationFrame(fitView); maps[0].data = JSON.parse(copyData()); }
+    } catch (e) {
+      maps = [{ id: "map-main", name: "主画布", data: null }];
+      activeId = "map-main";
+      seedDemo(); setBoardTexture(); requestAnimationFrame(fitView);
+      maps[0].data = JSON.parse(copyData());
+    }
+  })();
+  history=[copyData()];
   updateHistoryButtons();
+  renderTabs();
+  persist();
 })();

@@ -6,6 +6,7 @@ const root=path.join(__dirname,".."),elements=new Map(),frames=[],storage=new Ma
 class El{
   constructor(t="div"){this.tagName=t.toUpperCase();this.style={};this.dataset={};this.children=[];this.listeners={};this.clientWidth=1200;this.clientHeight=850;this.value="";this.files=[];this.hidden=false;this.classes=new Set();
     this.classList={add:(...x)=>x.forEach(y=>this.classes.add(y)),remove:(...x)=>x.forEach(y=>this.classes.delete(y)),toggle:(x,v)=>{const on=v===undefined?!this.classes.has(x):v;on?this.classes.add(x):this.classes.delete(x);return on;}};}
+  set innerHTML(v){ this._html = v; this.children.length = 0; } get innerHTML(){ return this._html || ""; }
   set className(v){this.classes=new Set(v.split(" "));} get className(){return [...this.classes].join(" ");}
   appendChild(x){this.children.push(x);return x;} remove(){} addEventListener(k,f){(this.listeners[k]||=[]).push(f);} removeEventListener(){}
   setAttribute(k,v){this[k]=v;} getBoundingClientRect(){return{left:0,top:0,width:this.clientWidth,height:this.clientHeight};}
