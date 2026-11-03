@@ -12,6 +12,8 @@
   const DEFAULT_LOGO = "assets/school-logo.png";
   // 云朵全部来自 cloud-sea 贴图，不再单独绘制云朵素材
   const CLOUD_SEA_SRC = "assets/cloud-sea.webp";
+  const ZONES_SRC = "assets/zones.svg";
+  let zonesVisible = false, zonesImage = null;
   // 整片云海：无缝平铺，作为“飞机视角下的地面云层”
   function paintCloudSea(ctx, w, h) {
     const tile = window.MapAssets.get(CLOUD_SEA_SRC);
@@ -103,6 +105,15 @@
       raw.drawImage(lakeRenderer.render(board.w, board.h, lakeSnapshots()), 0, 0);
     }
   });
+  const zonesNode = new Konva.Image({ x: 0, y: 0, width: 1500, height: 1000, listening: false, visible: false });
+  mapLayer.add(zonesNode);
+  function updateZonesNode() {
+    zonesNode.width(board.w); zonesNode.height(board.h);
+    zonesNode.visible(zonesVisible && !!zonesImage);
+    const btn = $("zonesBtn");
+    if (btn) { btn.classList.toggle("is-active", zonesVisible); btn.setAttribute("aria-pressed", String(zonesVisible)); }
+    mapLayer.batchDraw();
+  }
   objectsLayer.add(waterSurface); waterSurface.moveToBottom();
   const roadSurface = new Konva.Shape({
     listening: false,
@@ -189,7 +200,7 @@
     return "item-" + (Date.now().toString(36)) + "-" + (nextId++).toString(36);
   }
   function copyData() {
-    return JSON.stringify({ orientation: orientation, snapEnabled: snapEnabled, logoData: logoData, title: mapTitle, items: items.map(function (item) {
+    return JSON.stringify({ orientation: orientation, snapEnabled: snapEnabled, logoData: logoData, title: mapTitle, zones: !!zonesVisible, items: items.map(function (item) {
       return { id: item.id, type: item.type, x: item.x, y: item.y, w: item.w, h: item.h, rotation: item.rotation, name: item.name, showName: item.showName, pathPoints: item.pathPoints || null, pathBaseW: item.pathBaseW || null, pathBaseH: item.pathBaseH || null, pathThickness: item.pathThickness || null, tint: item.tint || null, noHit: !!item.noHit, overItems: !!item.overItems, imageData: item.imageData || "" };
     }) });
   }
@@ -268,6 +279,9 @@
     $("orientationBtn").innerHTML = orientation === "portrait" ? '<span class="tool-icon">▭</span><span>横屏画布</span>' : '<span class="tool-icon">▯</span><span>竖屏画布</span>';
     mapLayer.batchDraw();
   }
+  window.MapAssets.load(ZONES_SRC).then(function (img) {
+    if (img) { zonesImage = img; zonesNode.image(img); updateZonesNode(); }
+  });
   function ensureItemImage(item) {
     if (!item.imageData) return Promise.resolve(null);
     if (item.imageElement && (item.imageElement.complete === undefined || (item.imageElement.complete && item.imageElement.naturalWidth))) return Promise.resolve(item.imageElement);
@@ -771,6 +785,7 @@
     snapEnabled = data.snapEnabled !== false;
     logoData = typeof data.logoData === "string" && data.logoData ? data.logoData : DEFAULT_LOGO;
     mapTitle = typeof data.title === "string" ? data.title : "南湖创梦空间";
+    zonesVisible = data.zones === true;
     items = Array.isArray(data.items) ? data.items.map(function (x) {
       const def = ART.definitions.find(function (d) { return d.type === x.type; });
       if (!def) return null;
@@ -782,7 +797,7 @@
     orientationTransform = null;
     $("snapBtn").classList.toggle("is-active", snapEnabled);
     $("snapBtn").setAttribute("aria-pressed", String(snapEnabled));
-    renderLogo(); setBoardTexture(); redrawItems(); requestAnimationFrame(fitView);
+    renderLogo(); setBoardTexture(); redrawItems(); updateZonesNode(); requestAnimationFrame(fitView);
   }
   function undo() {
     if (history.length < 2) return;
@@ -882,6 +897,7 @@
     // 勾选了「渲染在建筑之上」的道路/桥梁，最后再画一遍
     sceneCtx.drawImage(window.MapPaths.renderRoads(board.w, board.h, pathSnapshots("road", true)), 0, 0);
     sceneCtx.drawImage(window.MapPaths.renderBridges(board.w, board.h, pathSnapshots("bridge", true)), 0, 0);
+    if (zonesVisible && zonesImage) sceneCtx.drawImage(zonesImage, 0, 0, board.w, board.h);
     items.forEach(function (item) { renderExportLabel(sceneCtx, item); });
     const mapScale = .90, mapW = board.w * mapScale, mapH = board.h * mapScale;
     const mapX = (board.w - mapW) / 2, mapY = (board.h - mapH) / 2;
@@ -1083,6 +1099,11 @@
   $("orientationBtn").addEventListener("click",orientationChange);
   $("snapBtn").addEventListener("click",function(){snapEnabled=!snapEnabled;this.classList.toggle("is-active",snapEnabled);this.setAttribute("aria-pressed",String(snapEnabled));record();showToast(snapEnabled?"网格吸附已开启":"网格吸附已关闭");});
   $("fitBtn").addEventListener("click",fitView);
+  $("zonesBtn").addEventListener("click",function(){
+    zonesVisible=!zonesVisible;
+    updateZonesNode(); record();
+    showToast(zonesVisible?"已显示功能分区标注":"已隐藏功能分区标注");
+  });
   $("zoomInBtn").addEventListener("click",function(){zoomAt({x:stage.width()/2,y:stage.height()/2},Math.min(2.5,stage.scaleX()*1.15));});
   $("zoomOutBtn").addEventListener("click",function(){zoomAt({x:stage.width()/2,y:stage.height()/2},Math.max(.18,stage.scaleX()/1.15));});
   $("undoBtn").addEventListener("click",undo);$("redoBtn").addEventListener("click",redo);
