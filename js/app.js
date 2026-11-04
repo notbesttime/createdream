@@ -12,7 +12,7 @@
   const DEFAULT_LOGO = "assets/school-logo.png";
   // 云朵全部来自 cloud-sea 贴图，不再单独绘制云朵素材
   const CLOUD_SEA_SRC = "assets/cloud-sea.webp";
-  const ZONES_SRC = "assets/zones.svg?v=20261103-2";
+  const ZONES_SRC = "assets/zones.svg?v=20261104-1";
   let zonesVisible = false, zonesImage = null;
   // 整片云海：无缝平铺，作为“飞机视角下的地面云层”
   function paintCloudSea(ctx, w, h) {
