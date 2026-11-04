@@ -8,6 +8,7 @@
     { group: "建筑", type: "brick", label: "砖楼(右)", w: 235, h: 183, color: "#9a6d58", src: "assets/brick-right.webp" },
     { group: "建筑", type: "round", label: "圆形楼", w: 240, h: 156, color: "#f2f1ea", src: "assets/round.webp" },
     { group: "建筑", type: "newbuilding", label: "新楼", w: 280, h: 184, color: "#9a6d58", src: "assets/new-building.webp" },
+    { group: "建筑", type: "glasshouse", label: "玻璃房", w: 280, h: 208, color: "#83b5bd", src: "assets/glass-house.webp" },
     { group: "建筑", type: "roundside", label: "圆形楼·侧视", w: 240, h: 147, color: "#f2f1ea", src: "assets/round-side.webp" },
     { group: "建筑", type: "brickbacka", label: "砖楼·背面A", w: 235, h: 176, color: "#9a6d58", src: "assets/brick-back-a.webp" },
     { group: "建筑", type: "brickbackb", label: "砖楼·背面B", w: 235, h: 175, color: "#9a6d58", src: "assets/brick-back-b.webp" },

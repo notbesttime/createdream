@@ -20,7 +20,7 @@ const sandbox=vm.createContext({window,document,Image,console,performance,Uint8A
 for(const file of ["vendor/konva.min.js","assets.js","draw.js","paths.js","water.js"]){vm.runInContext(fs.readFileSync(path.join(root,"js",file),"utf8"),sandbox,{filename:file});}
 let assetReads=0;
 // Test-only: node-canvas cannot decode WebP, so the same sprites are read from PNG copies.
-const assetFiles={"assets/cloud-sea.webp":path.join(__dirname,"fixtures","cloud-sea-probe.png"),"assets/new-building.webp":path.join(__dirname,"fixtures","new-building-probe.png"),"assets/tree.webp":path.join(__dirname,"fixtures","tree-probe.png"),"assets/grass.webp":path.join(__dirname,"fixtures","grass-probe.png"),"assets/brick-left.webp":path.join(__dirname,"fixtures","brick-left-probe.png"),"assets/brick-right.webp":path.join(__dirname,"fixtures","brick-right-probe.png"),"assets/round.webp":path.join(__dirname,"fixtures","round-probe.png"),"assets/round-side.webp":path.join(__dirname,"fixtures","round-side-probe.png"),"assets/brick-back-a.webp":path.join(__dirname,"fixtures","brick-back-a-probe.png"),"assets/brick-back-b.webp":path.join(__dirname,"fixtures","brick-back-b-probe.png")};
+const assetFiles={"assets/cloud-sea.webp":path.join(__dirname,"fixtures","cloud-sea-probe.png"),"assets/new-building.webp":path.join(__dirname,"fixtures","new-building-probe.png"),"assets/tree.webp":path.join(__dirname,"fixtures","tree-probe.png"),"assets/grass.webp":path.join(__dirname,"fixtures","grass-probe.png"),"assets/brick-left.webp":path.join(__dirname,"fixtures","brick-left-probe.png"),"assets/brick-right.webp":path.join(__dirname,"fixtures","brick-right-probe.png"),"assets/round.webp":path.join(__dirname,"fixtures","round-probe.png"),"assets/round-side.webp":path.join(__dirname,"fixtures","round-side-probe.png"),"assets/brick-back-a.webp":path.join(__dirname,"fixtures","brick-back-a-probe.png"),"assets/brick-back-b.webp":path.join(__dirname,"fixtures","brick-back-b-probe.png"),"assets/glass-house.webp":path.join(__dirname,"fixtures","glass-house-probe.png")};
 const assetBitmaps={};
 function loadAsset(src){const file=assetFiles[src];if(!file)return Promise.resolve(null);return new Promise(resolve=>{const image=new Image();image.onload=()=>{assetBitmaps[src]=image;resolve(image);};image.onerror=()=>resolve(null);image.src=fs.readFileSync(file);});}
 window.MapAssets={load:loadAsset,loadAll:list=>Promise.all(Array.from(new Set(list.filter(Boolean))).map(loadAsset)),get:src=>{assetReads+=1;return assetBitmaps[src]||null;},ready:src=>!!assetBitmaps[src],subscribe:(src,fn)=>{if(assetBitmaps[src])fn(assetBitmaps[src]);return()=>{};},stats:()=>({files:2,decoded:Object.keys(assetBitmaps).length})};
@@ -29,7 +29,7 @@ vm.runInContext(fs.readFileSync(path.join(root,"js/app.js"),"utf8"),sandbox,{fil
 for(let i=0;i<4&&frames.length;i++){const batch=frames.splice(0);batch.forEach(fn=>fn());}
 const stage=sandbox.Konva.stages[0],layer=stage.children[1],el=id=>document.getElementById(id);
 const curData=()=>{const raw=storage.get("ddhx-campus-maps-v2");if(!raw)return {items:[]};const p=JSON.parse(raw);const m=p.maps.find(function(x){return x.id===p.activeId;});return (m&&m.data)||{items:[]};};
-let passed=0;function test(name,run){run();passed++;console.log("PASS "+name);}const state=async()=>{await el("saveBtn").emit("click");return curData();};
+let passed=0;function test(name,run){const result=run();const done=()=>{passed++;console.log("PASS "+name);};if(result&&typeof result.then==="function")return result.then(done);done();}const state=async()=>{await el("saveBtn").emit("click");return curData();};
 (async()=>{
   stage.draw();
   test("app boots with actual Konva and a bottom water surface",()=>{assert.equal(el("itemCount").textContent,"15 个物件");assert.equal(layer.children[0].listening(),false);assert.ok(layer.children.some(n=>n.getAttr("itemId")));});
@@ -138,10 +138,11 @@ let passed=0;function test(name,run){run();passed++;console.log("PASS "+name);}c
   const newTypes=[
     ["roundside","圆形楼·侧视","assets/round-side.webp"],
     ["brickbacka","砖楼·背面A","assets/brick-back-a.webp"],
-    ["brickbackb","砖楼·背面B","assets/brick-back-b.webp"]
+    ["brickbackb","砖楼·背面B","assets/brick-back-b.webp"],
+    ["glasshouse","玻璃房","assets/glass-house.webp"]
   ];
   const paletteCards=()=>el("paletteGroups").children.filter(function(n){return n.className==="asset-grid";}).reduce(function(all,g){return all.concat(g.children);},[]);
-  test("新增的圆形楼侧视与两个砖楼背面已进素材面板并解码成功",()=>{
+  test("新增建筑与玻璃房已进素材面板并解码成功",()=>{
     const cards=paletteCards();
     newTypes.forEach(function(w){
       const card=cards.find(function(c){return c.dataset.type===w[0];});
@@ -153,7 +154,7 @@ let passed=0;function test(name,run){run();passed++;console.log("PASS "+name);}c
       assert.ok(assetBitmaps[w[2]],w[2]+" 应已解码");
     });
   });
-  test("新增建筑可点击放置且尺寸与贴图比例一致",async()=>{
+  await test("新增建筑可点击放置且尺寸与贴图比例一致",async()=>{
     const cards=paletteCards();
     for(const w of newTypes){
       cards.find(function(c){return c.dataset.type===w[0];}).emit("click");
@@ -166,7 +167,19 @@ let passed=0;function test(name,run){run();passed++;console.log("PASS "+name);}c
       assert.ok(item.w>0&&item.h>0,"尺寸应为正数");
       const node=layer.children.find(function(n){return n.getAttr("itemId")===item.id;});
       assert.ok(node,"应生成对应的 Konva 节点");
+      const bitmap=assetBitmaps[w[2]];
+      assert.ok(Math.abs(item.w/item.h-bitmap.width/bitmap.height)<0.02,"贴图应保持宽高比例");
+      const rendered=node.toCanvas({pixelRatio:1});
+      const pixels=rendered.getContext("2d").getImageData(0,0,rendered.width,rendered.height).data;
+      assert.ok(pixels.some((value,index)=>index%4===3&&value>0),"建筑应实际绘制像素");
     });
+  });
+  await test("含玻璃房的地图可导出 PNG",async()=>{
+    const count=downloads.length;
+    await el("exportPngBtn").emit("click");
+    assert.ok(downloads.length>count,"应生成新的图片下载");
+    const output=downloads[downloads.length-1];
+    assert.ok(output.href.startsWith("data:image/png"),"应导出 PNG");
   });
   console.log(JSON.stringify({passed,items:data.items.length,orientation:data.orientation}));
 })().catch(error=>{console.error(error.stack);process.exitCode=1;});
