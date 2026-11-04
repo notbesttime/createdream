@@ -2,6 +2,8 @@
 node_modules/
 tests/artifacts/
 dist/
+# 建筑原图（生图参考，体积大，不进仓库）
+原图素材/
 *.log
 .DS_Store
 Thumbs.db
